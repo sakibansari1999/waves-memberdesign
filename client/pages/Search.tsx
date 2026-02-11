@@ -34,7 +34,7 @@ export default function Search() {
     const params = new URLSearchParams();
 
     // Only add filters that are relevant to /api/fleets
-    if (searchParams.location) {
+    if (searchParams.location && searchParams.location !== "any") {
       params.append("location", searchParams.location);
     }
 
@@ -94,7 +94,7 @@ export default function Search() {
                     <SelectValue placeholder={locationsLoading ? "Loading..." : "Any"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Any</SelectItem>
+                    <SelectItem value="any">Any</SelectItem>
                     {locations.map((location) => (
                       <SelectItem key={location} value={location}>
                         {location.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
