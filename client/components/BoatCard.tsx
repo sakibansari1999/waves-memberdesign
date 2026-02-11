@@ -61,7 +61,7 @@ export default function BoatCard({
               <span className="w-0.5 h-0.5 bg-gray-900 rounded-full"></span>
               <span className="text-gray-900 text-xs">{category}</span>
             </div>
-            <div className="text-gray-500 text-xs mt-1">{id}</div>
+            {/* <div className="text-gray-500 text-xs mt-1">{id}</div> */}
           </div>
           {pricePerHour && (
             <div className="text-right">
