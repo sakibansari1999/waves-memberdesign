@@ -34,16 +34,9 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Search />} />
 
             {/* Protected Routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <BrowseBoats />
-                </ProtectedRoute>
-              }
-            />
             <Route
               path="/browse"
               element={

@@ -1,12 +1,15 @@
-import { Search, ArrowUpDown } from "lucide-react";
-import { useState, useMemo } from "react";
+import { Search, ArrowUpDown, X } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import BoatCard from "@/components/BoatCard";
 import FiltersSidebar from "@/components/FiltersSidebar";
 import BoatDetailModal from "@/components/BoatDetailModal";
 import { useBoats } from "@/hooks/useBoats";
 import { BoatFilters } from "@/utils/api";
+import { Button } from "@/components/ui/button";
 
 export default function BrowseBoats() {
+  const [searchParams] = useSearchParams();
   const [selectedBoat, setSelectedBoat] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -19,6 +22,25 @@ export default function BrowseBoats() {
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>("created_at");
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>("desc");
+  const [hasSearchParams, setHasSearchParams] = useState(false);
+
+  // Load search params from URL on component mount
+  useEffect(() => {
+    const urlLocation = searchParams.get("location");
+    const urlDate = searchParams.get("date");
+
+    if (urlLocation || urlDate) {
+      setHasSearchParams(true);
+
+      if (urlLocation && urlLocation !== "any") {
+        setLocations([urlLocation]);
+      }
+
+      if (urlDate) {
+        setSelectedDate(urlDate);
+      }
+    }
+  }, [searchParams]);
 
   // Build filters object
   const filters: BoatFilters = useMemo(() => ({
@@ -49,6 +71,18 @@ export default function BrowseBoats() {
 
   const toggleSort = () => {
     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+  };
+
+  const handleResetFilters = () => {
+    setSearchQuery("");
+    setSelectedDate(null);
+    setLocations([]);
+    setBoatTypes([]);
+    setLengthRange([16, 30]);
+    setSelectedFeatures([]);
+    setSortBy("created_at");
+    setSortOrder("desc");
+    setHasSearchParams(false);
   };
 
   const boats = boatsResponse?.data || [];
@@ -87,13 +121,27 @@ export default function BrowseBoats() {
         {/* Main Content */}
         <div className="flex-1">
           {/* Header */}
-          <div className="mb-6">
-            <h1 className="text-gray-900 text-2xl font-semibold mb-1">
-              {formatDateDisplay(selectedDate)}
-            </h1>
-            <p className="text-gray-500 text-sm">
-              {isLoading ? "Loading..." : `${boats.length} boat${boats.length !== 1 ? 's' : ''} found`}
-            </p>
+          <div className="mb-6 flex items-start justify-between">
+            <div>
+              <h1 className="text-gray-900 text-2xl font-semibold mb-1">
+                {formatDateDisplay(selectedDate)}
+              </h1>
+              <p className="text-gray-500 text-sm">
+                {isLoading ? "Loading..." : `${boats.length} boat${boats.length !== 1 ? 's' : ''} found`}
+              </p>
+            </div>
+
+            {/* Reset Filters Button - Show only when search params are active */}
+            {hasSearchParams && (
+              <Button
+                onClick={handleResetFilters}
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <X className="w-4 h-4" />
+                Reset Filters
+              </Button>
+            )}
           </div>
 
           {/* Search and Sort */}

@@ -21,8 +21,22 @@ export default function Search() {
   });
 
   const handleSearch = () => {
-    // Navigate to browse boats page with search params
-    navigate("/");
+    // Build query string with search parameters
+    const params = new URLSearchParams();
+
+    // Only add filters that are relevant to /api/fleets
+    if (searchParams.location && searchParams.location !== "any") {
+      params.append("location", searchParams.location);
+    }
+
+    if (searchParams.date) {
+      params.append("date", searchParams.date);
+    }
+
+    // Note: startTime, duration, and passengers are for booking flow, not search
+
+    // Navigate to browse page with search params
+    navigate(`/browse?${params.toString()}`);
   };
 
   return (
