@@ -33,10 +33,6 @@ export default function Header() {
 
   // Determine if a navigation link is active
   const isLinkActive = (pathname: string) => {
-    // Handle home route - both "/" and "/browse" lead to BrowseBoats
-    if (pathname === "/" || pathname === "/browse") {
-      return location.pathname === "/" || location.pathname === "/browse";
-    }
     return location.pathname === pathname;
   };
 
@@ -53,21 +49,10 @@ export default function Header() {
       {isAuthenticated && (
         <nav className="hidden md:flex items-center gap-4 lg:gap-6">
           <Link
-            to="/search"
+            to="/browse"
             className={cn(
               "font-medium text-base transition-colors",
-              isLinkActive("/search")
-                ? "text-blue-primary font-bold"
-                : "text-gray-900 hover:text-blue-primary"
-            )}
-          >
-            Search
-          </Link>
-          <Link
-            to="/"
-            className={cn(
-              "font-medium text-base transition-colors",
-              isLinkActive("/")
+              isLinkActive("/browse")
                 ? "text-blue-primary font-bold"
                 : "text-gray-900 hover:text-blue-primary"
             )}
