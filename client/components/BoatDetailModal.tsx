@@ -238,9 +238,7 @@ export default function BoatDetailModal({
 
           {/* Action Buttons */}
           <div className="flex gap-5">
-            <button className="flex-1 py-3 px-4 border border-gray-500 text-gray-500 font-semibold text-base rounded-md hover:bg-gray-50 transition-colors">
-              View Details
-            </button>
+          
             <button
               onClick={handleSelectBoat}
               className="flex-1 py-3 px-4 bg-blue-primary text-white font-semibold text-base rounded-md hover:bg-blue-primary/90 transition-colors"
