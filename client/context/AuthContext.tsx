@@ -9,7 +9,8 @@ interface User {
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
-  login: (user: User) => void;
+  token: string | null;
+  login: (user: User, tokenData?: { accessToken: string; refreshToken: string }) => void;
   logout: () => void;
   loading: boolean;
 }
@@ -21,17 +22,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Check authentication status on app load
   useEffect(() => {
     const checkAuth = () => {
       try {
-        // Check if there's a user in localStorage
+        // Check if there's a user and token in localStorage
         const storedUser = localStorage.getItem("user");
-        if (storedUser) {
+        const storedToken = localStorage.getItem("accessToken");
+
+        if (storedUser && storedToken) {
           const userData = JSON.parse(storedUser);
           setUser(userData);
+          setToken(storedToken);
           setIsAuthenticated(true);
         }
       } catch (error) {
@@ -44,22 +49,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     checkAuth();
   }, []);
 
-  const login = (newUser: User) => {
+  const login = (newUser: User, tokenData?: { accessToken: string; refreshToken: string }) => {
     setUser(newUser);
     setIsAuthenticated(true);
-    // Store user info in localStorage for persistence
+
+    // Store user info in localStorage
     localStorage.setItem("user", JSON.stringify(newUser));
+
+    // Store token if provided (for Laravel Sanctum)
+    if (tokenData?.accessToken) {
+      setToken(tokenData.accessToken);
+      localStorage.setItem("accessToken", tokenData.accessToken);
+    }
   };
 
   const logout = () => {
     setUser(null);
     setIsAuthenticated(false);
-    // Clear user info from localStorage
+    setToken(null);
+
+    // Clear from localStorage
     localStorage.removeItem("user");
+    localStorage.removeItem("accessToken");
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout, loading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, token, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

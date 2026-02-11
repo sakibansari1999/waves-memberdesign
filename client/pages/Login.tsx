@@ -23,6 +23,7 @@ export default function Login() {
   const [otpValue, setOtpValue] = useState("");
   const [resendTimer, setResendTimer] = useState(0);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   // Timer effect for resend functionality
   useEffect(() => {
@@ -35,65 +36,195 @@ export default function Login() {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
-  const handleSendOTP = (e: React.FormEvent) => {
+  const handleSendOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
+
     // Validate email
     if (!email) {
       setError("Please enter your email address");
+      setIsLoading(false);
       return;
     }
-    // Simulate sending OTP
-    setShowOTP(true);
-    setResendTimer(30); // 30 seconds cooldown
-  };
 
-  const handleVerifyOTP = (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-    // Simulate OTP verification
-    if (otpValue.length === 6) {
-      // Create user object and login
-      const newUser = {
-        id: `user_${Date.now()}`,
-        email,
-        loginMethod: "otp" as const,
-      };
-      login(newUser);
-      // Navigate to home
-      navigate("/");
-    } else {
-      setError("Please enter the complete OTP");
+    try {
+      // Call Laravel Sanctum API to send OTP
+      const response = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(
+          data.message || data.errors?.email?.[0] || "Failed to send OTP"
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      // OTP sent successfully
+      setShowOTP(true);
+      setResendTimer(30); // 30 seconds cooldown
+      setIsLoading(false);
+    } catch (err) {
+      setError("Network error. Please try again.");
+      setIsLoading(false);
     }
   };
 
-  const handlePasswordLogin = (e: React.FormEvent) => {
+  const handleVerifyOTP = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
+
+    // Validate OTP length
+    if (otpValue.length !== 6) {
+      setError("Please enter the complete 6-digit OTP");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Call Laravel Sanctum API to verify OTP
+      const response = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ email, otp: otpValue }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(
+          data.message ||
+            data.errors?.otp?.[0] ||
+            "Failed to verify OTP. Please try again."
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      // OTP verified successfully - login user
+      if (data.data?.user && data.data?.token) {
+        const newUser = {
+          id: String(data.data.user.id),
+          email: data.data.user.email,
+          loginMethod: "otp" as const,
+        };
+        login(newUser, {
+          accessToken: data.data.token,
+          refreshToken: "", // Sanctum doesn't use refresh tokens
+        });
+        setIsLoading(false);
+        navigate("/");
+      } else {
+        setError("Login failed. Please try again.");
+        setIsLoading(false);
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+      setIsLoading(false);
+    }
+  };
+
+  const handlePasswordLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
     // Validate fields
     if (!email) {
       setError("Please enter your email address");
+      setIsLoading(false);
       return;
     }
     if (!password) {
       setError("Please enter your password");
+      setIsLoading(false);
       return;
     }
-    // Simulate password verification
-    const newUser = {
-      id: `user_${Date.now()}`,
-      email,
-      loginMethod: "password" as const,
-    };
-    login(newUser);
-    // Navigate to home
-    navigate("/");
+
+    try {
+      // Call Laravel Sanctum API for password login
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(
+          data.message ||
+            data.errors?.email?.[0] ||
+            "Invalid email or password"
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      // Password verified successfully - login user
+      if (data.data?.user && data.data?.token) {
+        const newUser = {
+          id: String(data.data.user.id),
+          email: data.data.user.email,
+          loginMethod: "password" as const,
+        };
+        login(newUser, {
+          accessToken: data.data.token,
+          refreshToken: "", // Sanctum doesn't use refresh tokens
+        });
+        setIsLoading(false);
+        navigate("/");
+      } else {
+        setError("Login failed. Please try again.");
+        setIsLoading(false);
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+      setIsLoading(false);
+    }
   };
 
-  const handleResend = () => {
-    // Simulate resending OTP
-    console.log("Resending OTP...");
-    setResendTimer(30); // Reset timer
+  const handleResend = async () => {
+    setIsLoading(true);
+    try {
+      // Call Laravel Sanctum API to resend OTP
+      const response = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResendTimer(30); // Reset timer
+      } else {
+        setError(data.message || "Failed to resend OTP");
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBackToLogin = () => {
@@ -143,6 +274,7 @@ export default function Login() {
                 maxLength={6}
                 value={otpValue}
                 onChange={(value) => setOtpValue(value)}
+                disabled={isLoading}
               >
                 <InputOTPGroup>
                   <InputOTPSlot index={0} className="w-12 h-12 text-lg" />
@@ -158,10 +290,10 @@ export default function Login() {
             {/* Verify Button */}
             <Button
               type="submit"
-              disabled={otpValue.length !== 6}
+              disabled={otpValue.length !== 6 || isLoading}
               className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Verify & Continue
+              {isLoading ? "Verifying..." : "Verify & Continue"}
             </Button>
 
             {/* Resend & Change Email */}
@@ -172,10 +304,14 @@ export default function Login() {
                   <button
                     type="button"
                     onClick={handleResend}
-                    disabled={resendTimer > 0}
+                    disabled={resendTimer > 0 || isLoading}
                     className="text-blue-600 hover:text-blue-700 font-medium disabled:text-gray-400 disabled:cursor-not-allowed transition-colors"
                   >
-                    {resendTimer > 0 ? `Resend in ${resendTimer}s` : "Resend"}
+                    {isLoading && resendTimer === 0
+                      ? "Resending..."
+                      : resendTimer > 0
+                        ? `Resend in ${resendTimer}s`
+                        : "Resend"}
                   </button>
                 </p>
               </div>
@@ -264,9 +400,10 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold"
+                disabled={isLoading || !email}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Send OTP
+                {isLoading ? "Sending OTP..." : "Send OTP"}
               </Button>
             </form>
           </TabsContent>
@@ -284,6 +421,7 @@ export default function Login() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="john@example.com"
                   className="bg-white border-gray-300"
+                  disabled={isLoading}
                   required
                 />
               </div>
@@ -312,12 +450,14 @@ export default function Login() {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     className="bg-white border-gray-300 pr-10"
+                    disabled={isLoading}
                     required
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors"
+                    disabled={isLoading}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 transition-colors disabled:opacity-50"
                   >
                     {showPassword ? (
                       <EyeOff className="w-4 h-4" />
@@ -330,9 +470,10 @@ export default function Login() {
 
               <Button
                 type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold"
+                disabled={isLoading || !email || !password}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Sign In
+                {isLoading ? "Signing In..." : "Sign In"}
               </Button>
             </form>
           </TabsContent>
