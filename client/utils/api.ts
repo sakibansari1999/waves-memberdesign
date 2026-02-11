@@ -1,21 +1,19 @@
-// API configuration for Laravel Sanctum
+// Laravel API base URL
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
 
 interface ApiOptions extends RequestInit {
-  includeAuth?: boolean;
+  auth?: boolean; // Include auth token (default: true)
 }
 
 /**
- * Make an authenticated API request with Laravel Sanctum token
- * @param endpoint - API endpoint (e.g., '/api/auth/login')
- * @param options - Fetch options
- * @returns Promise with response data
+ * Simple API call wrapper for Laravel backend
+ * Automatically includes Bearer token if available
  */
 export async function apiCall<T>(
   endpoint: string,
   options: ApiOptions = {}
 ): Promise<T> {
-  const { includeAuth = true, ...fetchOptions } = options;
+  const { auth = true, ...fetchOptions } = options;
 
   const headers: HeadersInit = {
     "Content-Type": "application/json",
@@ -23,8 +21,8 @@ export async function apiCall<T>(
     ...fetchOptions.headers,
   };
 
-  // Add authorization token if needed
-  if (includeAuth) {
+  // Add Bearer token if needed
+  if (auth) {
     const token = localStorage.getItem("accessToken");
     if (token) {
       headers.Authorization = `Bearer ${token}`;
@@ -36,7 +34,7 @@ export async function apiCall<T>(
     headers,
   });
 
-  // Handle 401 Unauthorized - token might be expired
+  // Handle unauthorized
   if (response.status === 401) {
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
@@ -47,53 +45,37 @@ export async function apiCall<T>(
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(
-      data.message || `API Error: ${response.status}`
-    );
+    throw new Error(data.message || `Error: ${response.status}`);
   }
 
   return data;
 }
 
 /**
- * Make a public API request (no authentication)
+ * Public API call (no auth token needed)
  */
 export async function publicApiCall<T>(
   endpoint: string,
   options?: RequestInit
 ): Promise<T> {
-  return apiCall<T>(endpoint, { ...options, includeAuth: false });
-}
-
-/**
- * Make a protected API request (requires authentication)
- */
-export async function protectedApiCall<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<T> {
-  return apiCall<T>(endpoint, { ...options, includeAuth: true });
+  return apiCall<T>(endpoint, { ...options, auth: false });
 }
 
 /**
  * Fetch user profile
  */
-export async function fetchProfile<T>(
-  options?: RequestInit
-): Promise<T> {
-  return protectedApiCall<T>("/api/profile", options);
+export async function fetchProfile<T>(): Promise<T> {
+  return apiCall<T>("/api/profile");
 }
 
 /**
  * Save/Update user profile
  */
 export async function saveProfile<T>(
-  profileData: Record<string, unknown>,
-  options?: RequestInit
+  data: Record<string, unknown>
 ): Promise<T> {
-  return protectedApiCall<T>("/api/profile", {
-    ...options,
+  return apiCall<T>("/api/profile", {
     method: "PUT",
-    body: JSON.stringify(profileData),
+    body: JSON.stringify(data),
   });
 }
