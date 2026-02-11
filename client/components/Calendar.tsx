@@ -59,7 +59,7 @@ export default function Calendar({ selectedDate, onDateChange }: CalendarProps) 
   };
 
   const handleDateSelect = (day: number) => {
-    const selected = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const selected = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day+1);
     const dateString = selected.toISOString().split('T')[0];
     onDateChange(selectedDate === dateString ? null : dateString);
   };
