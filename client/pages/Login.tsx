@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/input-otp";
 import { useAuth } from "@/context/AuthContext";
 import { publicApiCall } from "@/utils/api";
+import { isProfileComplete } from "@/utils/profileValidation";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -102,7 +103,13 @@ export default function Login() {
           refreshToken: "", // Sanctum doesn't use refresh tokens
         });
         setIsLoading(false);
-        navigate("/");
+
+        // Check if profile is complete
+        if (!isProfileComplete(data.data.user)) {
+          navigate("/profile"); // Redirect to profile completion
+        } else {
+          navigate("/"); // Redirect to home
+        }
       } else {
         setError("Login failed. Please try again.");
         setIsLoading(false);
@@ -154,7 +161,13 @@ export default function Login() {
           refreshToken: "", // Sanctum doesn't use refresh tokens
         });
         setIsLoading(false);
-        navigate("/");
+
+        // Check if profile is complete
+        if (!isProfileComplete(data.data.user)) {
+          navigate("/profile"); // Redirect to profile completion
+        } else {
+          navigate("/"); // Redirect to home
+        }
       } else {
         setError("Login failed. Please try again.");
         setIsLoading(false);

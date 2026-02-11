@@ -5,15 +5,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchProfile, saveProfile } from "@/utils/api";
+import { isProfileComplete } from "@/utils/profileValidation";
 import { MemberProfile, UpdateProfileRequest, SaveProfileResponse } from "@shared/types";
 
 export default function Profile() {
-  const { user, updateProfile } = useAuth();
+  const { user, updateProfile, isNewLogin, clearNewLoginFlag } = useAuth();
   const [isLoading, setIsLoading] = useState(!user?.profile); // Only load if no profile in auth
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [showEmergencyContact, setShowEmergencyContact] = useState(false);
+  const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
 
   const [formData, setFormData] = useState<Partial<MemberProfile>>({
     first_name: "",
@@ -52,6 +54,10 @@ export default function Profile() {
 
         if (profileData) {
           setFormData(profileData);
+          // Check if profile is incomplete (only on new login)
+          if (isNewLogin) {
+            setIsProfileIncomplete(!isProfileComplete(profileData));
+          }
           // Show emergency contact section if data exists
           if (profileData.emergency_contact_name) {
             setShowEmergencyContact(true);
@@ -67,7 +73,16 @@ export default function Profile() {
     };
 
     loadProfile();
-  }, [user?.profile]);
+  }, [user?.profile, isNewLogin]);
+
+  // Clear the new login flag when leaving the profile page
+  useEffect(() => {
+    return () => {
+      if (isNewLogin) {
+        clearNewLoginFlag();
+      }
+    };
+  }, [isNewLogin, clearNewLoginFlag]);
 
   const handleInputChange = (
     field: keyof MemberProfile,
@@ -157,10 +172,14 @@ export default function Profile() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-gray-900 text-3xl font-bold mb-2">
-            Your Profile
+            {isNewLogin && isProfileIncomplete
+              ? "Complete Your Profile"
+              : "Edit Your Profile"}
           </h1>
           <p className="text-gray-500 text-base">
-            Manage your account information and preferences
+            {isNewLogin && isProfileIncomplete
+              ? "Please fill in your profile details to get started"
+              : "Manage your account information and preferences"}
           </p>
         </div>
 
