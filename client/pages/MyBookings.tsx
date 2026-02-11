@@ -98,27 +98,33 @@ export default function MyBookings() {
               className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-blue-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 data-[state=active]:text-gray-900 text-gray-500 font-medium"
             >
               Upcoming
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-medium">
-                {isLoading ? "-" : bookings.length}
-              </span>
+              {activeTab === "upcoming" && (
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-medium">
+                  {isLoading ? "-" : bookings.length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="past"
               className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-blue-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 data-[state=active]:text-gray-900 text-gray-500 font-medium"
             >
               Past
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-medium">
-                {isLoading ? "-" : bookings.length}
-              </span>
+              {activeTab === "past" && (
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-medium">
+                  {isLoading ? "-" : bookings.length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="cancelled"
               className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-blue-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-6 py-3 data-[state=active]:text-gray-900 text-gray-500 font-medium"
             >
               Cancelled
-              <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-medium">
-                {isLoading ? "-" : bookings.length}
-              </span>
+              {activeTab === "cancelled" && (
+                <span className="ml-2 px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 text-xs font-medium">
+                  {isLoading ? "-" : bookings.length}
+                </span>
+              )}
             </TabsTrigger>
           </TabsList>
 
