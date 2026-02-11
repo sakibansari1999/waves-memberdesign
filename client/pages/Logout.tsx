@@ -1,19 +1,23 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { LogOut } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Logout() {
   const navigate = useNavigate();
+  const { logout } = useAuth();
 
   useEffect(() => {
-    // Simulate logout process
+    // Perform logout
+    logout();
+
+    // Simulate logout process with delay
     const timer = setTimeout(() => {
-      // In a real app, you would clear auth tokens, etc.
       navigate("/login");
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [navigate]);
+  }, [navigate, logout]);
 
   return (
     <div className="min-h-screen bg-gray-100 flex items-center justify-center px-4">

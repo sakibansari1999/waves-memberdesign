@@ -10,9 +10,11 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [loginMethod, setLoginMethod] = useState<"otp" | "password">("otp");
   const [showOTP, setShowOTP] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -51,7 +53,14 @@ export default function Login() {
     setError("");
     // Simulate OTP verification
     if (otpValue.length === 6) {
-      // Navigate to home or dashboard
+      // Create user object and login
+      const newUser = {
+        id: `user_${Date.now()}`,
+        email,
+        loginMethod: "otp" as const,
+      };
+      login(newUser);
+      // Navigate to home
       navigate("/");
     } else {
       setError("Please enter the complete OTP");
@@ -71,6 +80,13 @@ export default function Login() {
       return;
     }
     // Simulate password verification
+    const newUser = {
+      id: `user_${Date.now()}`,
+      email,
+      loginMethod: "password" as const,
+    };
+    login(newUser);
+    // Navigate to home
     navigate("/");
   };
 
