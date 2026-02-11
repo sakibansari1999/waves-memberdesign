@@ -380,3 +380,63 @@ export async function createReservation(
 export async function fetchReservation(id: number): Promise<ReservationResponse> {
   return apiCall<ReservationResponse>(`/api/reservations/${id}`);
 }
+
+/**
+ * My Bookings API Calls
+ */
+
+export interface FleetInfo {
+  id: number;
+  boat_name: string;
+  type: string;
+  dock_location: string;
+  image: string | null;
+  capacity: number;
+  length: number;
+  fare: number;
+}
+
+export interface MyBooking {
+  id: number;
+  booking_code: string;
+  fleet_id: number;
+  member_id: number;
+  location: string;
+  destination?: string;
+  start_date: string;
+  start_time: string;
+  end_date: string;
+  end_time: string;
+  duration_hours: number;
+  driver_requested: boolean;
+  status: "confirmed" | "pending" | "completed" | "cancelled";
+  customer_notes?: string;
+  created_at: string;
+  fleet: FleetInfo;
+}
+
+export interface MyBookingsResponse {
+  data: MyBooking[];
+  pagination: {
+    total: number;
+    per_page: number;
+    current_page: number;
+    last_page: number;
+  };
+}
+
+/**
+ * Get current user's bookings with optional status filter
+ */
+export async function fetchMyBookings(status?: string): Promise<MyBookingsResponse> {
+  const params = new URLSearchParams();
+
+  if (status) {
+    params.append('status', status);
+  }
+
+  const queryString = params.toString();
+  const endpoint = `/api/my-bookings${queryString ? '?' + queryString : ''}`;
+
+  return apiCall<MyBookingsResponse>(endpoint);
+}
