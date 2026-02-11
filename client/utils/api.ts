@@ -74,3 +74,26 @@ export async function protectedApiCall<T>(
 ): Promise<T> {
   return apiCall<T>(endpoint, { ...options, includeAuth: true });
 }
+
+/**
+ * Fetch user profile
+ */
+export async function fetchProfile<T>(
+  options?: RequestInit
+): Promise<T> {
+  return protectedApiCall<T>("/api/profile", options);
+}
+
+/**
+ * Save/Update user profile
+ */
+export async function saveProfile<T>(
+  profileData: Record<string, unknown>,
+  options?: RequestInit
+): Promise<T> {
+  return protectedApiCall<T>("/api/profile", {
+    ...options,
+    method: "PUT",
+    body: JSON.stringify(profileData),
+  });
+}

@@ -1,9 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { MemberProfile } from "@shared/types";
 
 interface User {
   id: string;
   email: string;
   loginMethod: "otp" | "password";
+  profile?: MemberProfile;
 }
 
 interface AuthContextType {
