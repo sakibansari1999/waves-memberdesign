@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { ArrowLeft, MapPin, Users, Info, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, MapPin, Users, Info, CheckCircle2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  useAvailableDates,
+  useAvailableTimes,
+  useDestinations,
+  useCreateReservation,
+  useFetchReservation,
+} from "@/hooks/useReservation";
+import { Boat } from "@/utils/api";
 
 interface BookingData {
   date: string;
@@ -27,22 +35,42 @@ interface BookingData {
 export default function BookingFlow() {
   const navigate = useNavigate();
   const location = useLocation();
-  const boat = location.state?.boat;
+  const boat = location.state?.boat as Boat | undefined;
 
   const [step, setStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData>({
     date: "",
     startTime: "",
-    duration: "04 hours",
+    duration: "04",
     endTime: "",
     destination: "",
-    driverRequired: "yes",
+    driverRequired: "no",
     notes: "",
   });
 
-  // Generate random booking ID
-  const [bookingId] = useState(
-    `WB-${Math.floor(100000 + Math.random() * 900000)}`,
+  const [createdReservationId, setCreatedReservationId] = useState<number | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  // Fetch available dates
+  const { data: availableDatesData, isLoading: datesLoading, error: datesError } = useAvailableDates(
+    boat?.id || null
+  );
+
+  // Fetch available times when date is selected
+  const { data: availableTimesData, isLoading: timesLoading } = useAvailableTimes(
+    boat?.id || null,
+    bookingData.date || null
+  );
+
+  // Fetch destinations
+  const { data: destinationsData, isLoading: destinationsLoading } = useDestinations();
+
+  // Create reservation mutation
+  const { mutate: submitBooking, isPending: isSubmitting } = useCreateReservation();
+
+  // Fetch reservation after creation
+  const { data: reservationData, isLoading: reservationLoading } = useFetchReservation(
+    createdReservationId
   );
 
   if (!boat) {
@@ -50,10 +78,14 @@ export default function BookingFlow() {
     return null;
   }
 
+  // Format duration hours (e.g., "04" to 4)
+  const durationHours = parseInt(bookingData.duration) || 4;
+
   const handleInputChange = (
     field: keyof BookingData,
     value: string | "yes" | "no",
   ) => {
+    setBookingError(null);
     setBookingData((prev) => {
       const updated = { ...prev, [field]: value };
 
@@ -64,7 +96,7 @@ export default function BookingFlow() {
 
         if (startTime && duration) {
           const [hours, minutes] = startTime.split(":").map(Number);
-          const durationHours = parseInt(duration.split(" ")[0]);
+          const durationHours = parseInt(duration);
           const endHour = (hours + durationHours) % 24;
           updated.endTime = `${String(endHour).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
         }
@@ -76,11 +108,37 @@ export default function BookingFlow() {
 
   const handleContinue = () => {
     if (step === 1) {
+      if (!bookingData.date || !bookingData.startTime || !bookingData.duration) {
+        setBookingError("Please fill in all required fields");
+        return;
+      }
       setStep(2);
       window.scrollTo(0, 0);
     } else if (step === 2) {
-      setStep(3);
-      window.scrollTo(0, 0);
+      // Submit booking
+      submitBooking(
+        {
+          fleet_id: boat.id,
+          start_date: bookingData.date,
+          start_time: bookingData.startTime,
+          duration_hours: durationHours,
+          destination: bookingData.destination || undefined,
+          driver_requested: bookingData.driverRequired === "yes",
+          customer_notes: bookingData.notes || undefined,
+        },
+        {
+          onSuccess: (data) => {
+            setCreatedReservationId(data.data.id);
+            setStep(3);
+            window.scrollTo(0, 0);
+          },
+          onError: (error: any) => {
+            setBookingError(
+              error?.message || "Failed to create booking. Please try again."
+            );
+          },
+        }
+      );
     }
   };
 
@@ -188,36 +246,56 @@ export default function BookingFlow() {
                 </h3>
 
                 <div className="space-y-6">
+                  {/* Error Message */}
+                  {bookingError && (
+                    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-red-700 text-sm">{bookingError}</p>
+                    </div>
+                  )}
+
                   {/* Date and Start Time Row */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="date" className="text-gray-900 text-sm">
-                        Date
+                        Date *
                       </Label>
-                      <Select
-                        value={bookingData.date}
-                        onValueChange={(value) =>
-                          handleInputChange("date", value)
-                        }
-                      >
-                        <SelectTrigger
-                          id="date"
-                          className="bg-white border-gray-300"
+                      {datesLoading ? (
+                        <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                      ) : datesError ? (
+                        <div className="text-red-600 text-sm">Failed to load dates</div>
+                      ) : (
+                        <Select
+                          value={bookingData.date}
+                          onValueChange={(value) =>
+                            handleInputChange("date", value)
+                          }
                         >
-                          <SelectValue placeholder="Select Date" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="2026-01-16">
-                            Friday, January 16, 2026
-                          </SelectItem>
-                          <SelectItem value="2026-01-17">
-                            Saturday, January 17, 2026
-                          </SelectItem>
-                          <SelectItem value="2026-01-18">
-                            Sunday, January 18, 2026
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
+                          <SelectTrigger
+                            id="date"
+                            className="bg-white border-gray-300"
+                          >
+                            <SelectValue placeholder="Select Date" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableDatesData?.data?.map((dateOption) => (
+                              <SelectItem
+                                key={dateOption.date}
+                                value={dateOption.date}
+                                disabled={!dateOption.available}
+                              >
+                                {new Date(dateOption.date).toLocaleDateString('en-US', {
+                                  weekday: 'long',
+                                  month: 'long',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                                {!dateOption.available && ' (Unavailable)'}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -225,31 +303,41 @@ export default function BookingFlow() {
                         htmlFor="startTime"
                         className="text-gray-900 text-sm"
                       >
-                        Start Time
+                        Start Time *
                       </Label>
-                      <Select
-                        value={bookingData.startTime}
-                        onValueChange={(value) =>
-                          handleInputChange("startTime", value)
-                        }
-                      >
-                        <SelectTrigger
-                          id="startTime"
-                          className="bg-white border-gray-300"
+                      {!bookingData.date ? (
+                        <div className="h-10 bg-gray-100 rounded-md flex items-center px-3 text-gray-500 text-sm">
+                          Select a date first
+                        </div>
+                      ) : timesLoading ? (
+                        <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                      ) : (
+                        <Select
+                          value={bookingData.startTime}
+                          onValueChange={(value) =>
+                            handleInputChange("startTime", value)
+                          }
                         >
-                          <SelectValue placeholder="Select Time" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="08:00">08:00 AM</SelectItem>
-                          <SelectItem value="09:00">09:00 AM</SelectItem>
-                          <SelectItem value="10:00">10:00 AM</SelectItem>
-                          <SelectItem value="11:00">11:00 AM</SelectItem>
-                          <SelectItem value="12:00">12:00 PM</SelectItem>
-                          <SelectItem value="13:00">01:00 PM</SelectItem>
-                          <SelectItem value="14:00">02:00 PM</SelectItem>
-                          <SelectItem value="15:00">03:00 PM</SelectItem>
-                        </SelectContent>
-                      </Select>
+                          <SelectTrigger
+                            id="startTime"
+                            className="bg-white border-gray-300"
+                          >
+                            <SelectValue placeholder="Select Time" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {availableTimesData?.data?.map((timeSlot) => (
+                              <SelectItem
+                                key={timeSlot.time}
+                                value={timeSlot.time}
+                                disabled={!timeSlot.available}
+                              >
+                                {timeSlot.label}
+                                {!timeSlot.available && ' (Booked)'}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
                     </div>
                   </div>
 
@@ -260,7 +348,7 @@ export default function BookingFlow() {
                         htmlFor="duration"
                         className="text-gray-900 text-sm"
                       >
-                        Duration (Hours)*
+                        Duration (Hours) *
                       </Label>
                       <Select
                         value={bookingData.duration}
@@ -275,12 +363,12 @@ export default function BookingFlow() {
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="02 hours">02 hours</SelectItem>
-                          <SelectItem value="03 hours">03 hours</SelectItem>
-                          <SelectItem value="04 hours">04 hours</SelectItem>
-                          <SelectItem value="05 hours">05 hours</SelectItem>
-                          <SelectItem value="06 hours">06 hours</SelectItem>
-                          <SelectItem value="08 hours">08 hours</SelectItem>
+                          <SelectItem value="2">2 hours</SelectItem>
+                          <SelectItem value="3">3 hours</SelectItem>
+                          <SelectItem value="4">4 hours</SelectItem>
+                          <SelectItem value="5">5 hours</SelectItem>
+                          <SelectItem value="6">6 hours</SelectItem>
+                          <SelectItem value="8">8 hours</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -294,7 +382,7 @@ export default function BookingFlow() {
                       </Label>
                       <Input
                         id="endTime"
-                        value={bookingData.endTime || "10:00"}
+                        value={bookingData.endTime || "--:--"}
                         readOnly
                         className="bg-gray-50 border-gray-300"
                       />
@@ -307,35 +395,32 @@ export default function BookingFlow() {
                       htmlFor="destination"
                       className="text-gray-900 text-sm"
                     >
-                      Destination (optional)
+                      Destination (Optional)
                     </Label>
-                    <Select
-                      value={bookingData.destination}
-                      onValueChange={(value) =>
-                        handleInputChange("destination", value)
-                      }
-                    >
-                      <SelectTrigger
-                        id="destination"
-                        className="bg-white border-gray-300"
+                    {destinationsLoading ? (
+                      <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                    ) : (
+                      <Select
+                        value={bookingData.destination}
+                        onValueChange={(value) =>
+                          handleInputChange("destination", value)
+                        }
                       >
-                        <SelectValue placeholder="Where would you like to go" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="coastal-tour">
-                          Coastal Tour
-                        </SelectItem>
-                        <SelectItem value="island-hopping">
-                          Island Hopping
-                        </SelectItem>
-                        <SelectItem value="fishing-spot">
-                          Fishing Spot
-                        </SelectItem>
-                        <SelectItem value="sunset-cruise">
-                          Sunset Cruise
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                        <SelectTrigger
+                          id="destination"
+                          className="bg-white border-gray-300"
+                        >
+                          <SelectValue placeholder="Where would you like to go" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {destinationsData?.data?.map((dest) => (
+                            <SelectItem key={dest.id} value={dest.id}>
+                              {dest.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
                   </div>
 
                   {/* Driver Required */}
@@ -351,18 +436,18 @@ export default function BookingFlow() {
                       className="flex gap-6"
                     >
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="yes" id="driver-yes" />
-                        <Label
-                          htmlFor="driver-yes"
-                          className="text-gray-900 text-sm font-normal cursor-pointer"
-                        >
-                          Yes, I'll drive
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
                         <RadioGroupItem value="no" id="driver-no" />
                         <Label
                           htmlFor="driver-no"
+                          className="text-gray-900 text-sm font-normal cursor-pointer"
+                        >
+                          No, I'll drive
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="yes" id="driver-yes" />
+                        <Label
+                          htmlFor="driver-yes"
                           className="text-gray-900 text-sm font-normal cursor-pointer"
                         >
                           Yes, provide driver
@@ -390,10 +475,10 @@ export default function BookingFlow() {
                   {/* Continue Button */}
                   <Button
                     onClick={handleContinue}
-                    disabled={!bookingData.date || !bookingData.startTime}
+                    disabled={!bookingData.date || !bookingData.startTime || !bookingData.duration || datesLoading || timesLoading}
                     className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"
                   >
-                    Continue
+                    {datesLoading || timesLoading ? "Loading..." : "Continue"}
                   </Button>
                 </div>
               </div>
@@ -455,11 +540,12 @@ export default function BookingFlow() {
                   <div className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">Date</span>
                     <span className="text-gray-900 text-sm font-medium">
-                      {bookingData.date === "2026-01-16"
-                        ? "Friday, January 16, 2026"
-                        : bookingData.date === "2026-01-17"
-                          ? "Saturday, January 17, 2026"
-                          : "Sunday, January 18, 2026"}
+                      {new Date(bookingData.date).toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        month: 'long',
+                        day: 'numeric',
+                        year: 'numeric',
+                      })}
                     </span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-gray-100">
@@ -471,14 +557,22 @@ export default function BookingFlow() {
                   <div className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">Duration</span>
                     <span className="text-gray-900 text-sm font-medium">
-                      {bookingData.duration}
+                      {durationHours} hour{durationHours !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  <div className="flex justify-between py-2 border-b border-gray-100">
+                    <span className="text-gray-500 text-sm">Destination</span>
+                    <span className="text-gray-900 text-sm font-medium">
+                      {bookingData.destination
+                        ? destinationsData?.data?.find(d => d.id === bookingData.destination)?.name || 'Not specified'
+                        : 'Not specified'}
                     </span>
                   </div>
                   <div className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">Driver</span>
                     <span className="text-gray-900 text-sm font-medium">
                       {bookingData.driverRequired === "yes"
-                        ? "Requested"
+                        ? "Provided by Company"
                         : "Self Drive"}
                     </span>
                   </div>
@@ -527,12 +621,21 @@ export default function BookingFlow() {
                   </div>
                 </div>
 
+                {/* Error Message */}
+                {bookingError && (
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-700 text-sm">{bookingError}</p>
+                  </div>
+                )}
+
                 {/* Confirm Button */}
                 <Button
                   onClick={handleContinue}
+                  disabled={isSubmitting}
                   className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"
                 >
-                  Confirm Booking
+                  {isSubmitting ? "Creating Booking..." : "Confirm Booking"}
                 </Button>
               </div>
             </div>
@@ -541,101 +644,118 @@ export default function BookingFlow() {
           {/* Step 3: Booking Confirmed */}
           {step === 3 && (
             <div className="text-center">
-              {/* Success Icon */}
-              <div className="flex items-center justify-center mb-6">
-                <div className="relative">
-                  <div className="w-28 h-28 rounded-full bg-green-500/10 flex items-center justify-center">
-                    <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center">
-                      <CheckCircle2 className="w-5 h-5 text-white" />
+              {reservationLoading ? (
+                <div className="flex justify-center items-center py-12">
+                  <div className="text-center">
+                    <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-primary"></div>
+                    <p className="mt-2 text-gray-600">Confirming your booking...</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Success Icon */}
+                  <div className="flex items-center justify-center mb-6">
+                    <div className="relative">
+                      <div className="w-28 h-28 rounded-full bg-green-500/10 flex items-center justify-center">
+                        <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center">
+                          <CheckCircle2 className="w-5 h-5 text-white" />
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Success Message */}
-              <div className="mb-8">
-                <h2 className="text-gray-900 text-2xl font-bold mb-4">
-                  Booking Confirmed!
-                </h2>
-                <p className="text-gray-500 text-base">Your adventure awaits</p>
-              </div>
+                  {/* Success Message */}
+                  <div className="mb-8">
+                    <h2 className="text-gray-900 text-2xl font-bold mb-4">
+                      Booking Confirmed!
+                    </h2>
+                    <p className="text-gray-500 text-base">Your adventure awaits</p>
+                  </div>
 
-              {/* Booking Details Card */}
-              <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
-                {/* Booking ID */}
-                <div className="text-center mb-6 pb-6 border-b border-gray-100">
-                  <h3 className="text-gray-500 text-xl font-medium mb-2">
-                    Booking ID
-                  </h3>
-                  <p className="text-blue-primary text-2xl font-bold">
-                    {bookingId}
-                  </p>
-                </div>
+                  {/* Booking Details Card */}
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
+                    {/* Booking ID */}
+                    <div className="text-center mb-6 pb-6 border-b border-gray-100">
+                      <h3 className="text-gray-500 text-xl font-medium mb-2">
+                        Booking ID
+                      </h3>
+                      <p className="text-blue-primary text-2xl font-bold">
+                        {reservationData?.data?.booking_code || bookingError}
+                      </p>
+                    </div>
 
-                {/* Details Grid */}
-                <div className="space-y-4 text-left">
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-500 text-sm">Boat</span>
-                    <span className="text-gray-900 text-sm font-semibold">
-                      {boat.name}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-500 text-sm">Date</span>
-                    <span className="text-gray-900 text-sm font-semibold">
-                      {bookingData.date === "2026-01-16"
-                        ? "Jan 16, 2026"
-                        : bookingData.date === "2026-01-17"
-                          ? "Jan 17, 2026"
-                          : "Jan 18, 2026"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-500 text-sm">Time</span>
-                    <span className="text-gray-900 text-sm font-semibold">
-                      {bookingData.startTime} - {bookingData.endTime}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-500 text-sm">Location</span>
-                    <span className="text-gray-900 text-sm font-semibold">
-                      {boat.location}
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="text-gray-500 text-sm">Membership</span>
-                    <span className="px-2 py-1 rounded-full bg-blue-primary/11 border border-blue-primary/30 text-blue-primary text-xs font-medium">
-                      Gold Member
-                    </span>
-                  </div>
-                </div>
+                    {/* Details Grid */}
+                    <div className="space-y-4 text-left">
+                      <div className="flex justify-between py-2">
+                        <span className="text-gray-500 text-sm">Boat</span>
+                        <span className="text-gray-900 text-sm font-semibold">
+                          {boat.boat_name}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-gray-500 text-sm">Date</span>
+                        <span className="text-gray-900 text-sm font-semibold">
+                          {new Date(reservationData?.data?.start_date || bookingData.date).toLocaleDateString('en-US', {
+                            month: 'short',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-gray-500 text-sm">Time</span>
+                        <span className="text-gray-900 text-sm font-semibold">
+                          {reservationData?.data?.start_time} - {reservationData?.data?.end_time}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-gray-500 text-sm">Location</span>
+                        <span className="text-gray-900 text-sm font-semibold">
+                          {boat.location}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-gray-500 text-sm">Duration</span>
+                        <span className="text-gray-900 text-sm font-semibold">
+                          {reservationData?.data?.duration_hours} hour{reservationData?.data?.duration_hours !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <div className="flex justify-between py-2">
+                        <span className="text-gray-500 text-sm">Status</span>
+                        <span className="px-2 py-1 rounded-full bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs font-medium">
+                          {reservationData?.data?.status?.charAt(0).toUpperCase() + reservationData?.data?.status?.slice(1) || 'Pending'}
+                        </span>
+                      </div>
+                    </div>
 
-                {/* Info Banner */}
-                <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg mt-6">
-                  <Info className="w-5 h-5 text-blue-primary flex-shrink-0 mt-0.5" />
-                  <p className="text-gray-600 text-xs text-left">
-                    No payment is required now. Fuel and usage charges will be
-                    billed after your trip.
-                  </p>
-                </div>
-              </div>
+                    {/* Info Banner */}
+                    <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg mt-6">
+                      <Info className="w-5 h-5 text-blue-primary flex-shrink-0 mt-0.5" />
+                      <p className="text-gray-600 text-xs text-left">
+                        No payment is required now. Fuel and usage charges will be
+                        billed after your trip based on actual consumption.
+                      </p>
+                    </div>
+                  </div>
 
-              {/* Action Buttons */}
-              <div className="space-y-3">
-                <Button
-                  onClick={() => navigate("/bookings")}
-                  className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"
-                >
-                  View booking details
-                </Button>
-                <Button
-                  onClick={() => navigate("/bookings")}
-                  variant="outline"
-                  className="w-full border-gray-300 text-gray-900 hover:bg-gray-50 py-6 text-base font-semibold"
-                >
-                  Go to My Bookings
-                </Button>
-              </div>
+                  {/* Action Buttons */}
+                  <div className="space-y-3">
+                    <Button
+                      onClick={() => navigate("/bookings")}
+                      className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"
+                    >
+                      View booking details
+                    </Button>
+                    <Button
+                      onClick={() => navigate("/boats")}
+                      variant="outline"
+                      className="w-full border-gray-300 text-gray-900 hover:bg-gray-50 py-6 text-base font-semibold"
+                    >
+                      Book another boat
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

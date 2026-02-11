@@ -1,50 +1,94 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchCalendarAvailability } from "@/utils/api";
 
-export default function Calendar() {
+interface CalendarProps {
+  selectedDate: string | null;
+  onDateChange: (date: string | null) => void;
+}
+
+export default function Calendar({ selectedDate, onDateChange }: CalendarProps) {
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+
+  // Fetch calendar availability
+  const { data: calendarData } = useQuery({
+    queryKey: ['calendar-availability', currentMonth.getFullYear(), currentMonth.getMonth() + 1],
+    queryFn: () => fetchCalendarAvailability(
+      currentMonth.getMonth() + 1,
+      currentMonth.getFullYear()
+    ),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const calendarDays = [
-    { day: 1, available: false },
-    { day: 2, available: false },
-    { day: 3, available: true, selected: true },
-    { day: 4, available: false },
-    { day: 5, available: false },
-    { day: 6, available: false },
-    { day: 7, available: false },
-    { day: 8, available: false },
-    { day: 9, available: false },
-    { day: 10, available: false },
-    { day: 11, available: false },
-    { day: 12, available: false },
-    { day: 13, available: false },
-    { day: 14, available: false },
-    { day: 15, available: false },
-    { day: 16, available: false },
-    { day: 17, available: false },
-    { day: 18, available: false },
-    { day: 19, available: false },
-    { day: 20, available: false },
-    { day: 21, available: true },
-    { day: 22, available: false },
-    { day: 23, available: false },
-    { day: 24, available: false },
-    { day: 25, available: false },
-    { day: 26, available: false },
-    { day: 27, available: false },
-    { day: 28, available: false },
-    { day: 29, available: false },
-    { day: 30, available: false },
-    { day: 31, available: false },
-  ];
+
+  // Get calendar days for current month
+  const getDaysInMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+  };
+
+  const getFirstDayOfMonth = (date: Date) => {
+    return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  };
+
+  const daysInMonth = getDaysInMonth(currentMonth);
+  const firstDay = getFirstDayOfMonth(currentMonth);
+
+  // Create calendar grid with empty cells for days before month starts
+  const calendarDays = [];
+  for (let i = 0; i < firstDay; i++) {
+    calendarDays.push(null);
+  }
+
+  for (let day = 1; day <= daysInMonth; day++) {
+    const calendarDay = calendarData?.days?.find(d => d.day === day);
+    calendarDays.push({
+      day,
+      available: calendarDay?.available ?? false,
+      boatsCount: calendarDay?.boatsCount ?? 0,
+    });
+  }
+
+  const handlePrevMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1));
+  };
+
+  const handleNextMonth = () => {
+    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1));
+  };
+
+  const handleDateSelect = (day: number) => {
+    const selected = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
+    const dateString = selected.toISOString().split('T')[0];
+    onDateChange(selectedDate === dateString ? null : dateString);
+  };
+
+  const getSelectedDayOfMonth = () => {
+    if (!selectedDate) return null;
+    const date = new Date(selectedDate);
+    return date.getDate();
+  };
+
+  const selectedDayOfMonth = getSelectedDayOfMonth();
+
+  const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
     <div className="bg-white rounded-md p-5 border-b border-gray-500/25">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-gray-900 font-semibold text-base">March 2026</h3>
+        <h3 className="text-gray-900 font-semibold text-base">{monthName}</h3>
         <div className="flex items-center gap-2">
-          <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 transition-colors">
+          <button
+            onClick={handlePrevMonth}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
+          >
             <ChevronLeft className="w-3 h-3 text-gray-900" />
           </button>
-          <button className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 transition-colors">
+          <button
+            onClick={handleNextMonth}
+            className="w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 transition-colors"
+          >
             <ChevronRight className="w-3 h-3 text-gray-900" />
           </button>
         </div>
@@ -58,26 +102,31 @@ export default function Calendar() {
             </span>
           </div>
         ))}
-        {calendarDays.map(({ day, available, selected }) => (
+        {calendarDays.map((dayData, index) => (
           <div
-            key={day}
+            key={index}
             className="aspect-square flex items-center justify-center"
           >
-            <button
-              className={`
-                w-8 h-8 rounded-md flex items-center justify-center text-sm
-                ${
-                  selected
-                    ? "bg-blue-primary text-white font-semibold"
-                    : available
-                      ? "bg-red-500 text-white font-normal"
-                      : "text-gray-900 hover:bg-gray-100 font-normal"
-                }
-                transition-colors
-              `}
-            >
-              {day}
-            </button>
+            {dayData ? (
+              <button
+                onClick={() => handleDateSelect(dayData.day)}
+                disabled={!dayData.available}
+                className={`
+                  w-8 h-8 rounded-md flex items-center justify-center text-sm
+                  ${
+                    selectedDayOfMonth === dayData.day && selectedDate
+                      ? "bg-blue-primary text-white font-semibold"
+                      : dayData.available
+                        ? "bg-green-badge text-white font-normal hover:opacity-80"
+                        : "text-gray-400 cursor-not-allowed"
+                  }
+                  transition-colors
+                `}
+                title={dayData.available ? `${dayData.boatsCount} boat(s) available` : 'Not available'}
+              >
+                {dayData.day}
+              </button>
+            ) : null}
           </div>
         ))}
       </div>
@@ -88,8 +137,8 @@ export default function Calendar() {
           <span className="text-xs text-gray-900">Available</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 border border-gray-500/25 rounded-sm bg-white"></div>
-          <span className="text-xs text-gray-900">Waitlist</span>
+          <div className="w-3 h-3 bg-gray-300 rounded-sm"></div>
+          <span className="text-xs text-gray-900">Unavailable</span>
         </div>
       </div>
     </div>
