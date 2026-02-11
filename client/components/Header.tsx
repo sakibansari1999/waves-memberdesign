@@ -1,7 +1,8 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { User, UserCircle, LogOut, Menu } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,6 +14,7 @@ import {
 export default function Header() {
   const { isAuthenticated, user, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Get user initials from email
   const getInitials = (email: string) => {
@@ -29,6 +31,15 @@ export default function Header() {
     return email.split("@")[0].replace(/\./g, " ");
   };
 
+  // Determine if a navigation link is active
+  const isLinkActive = (pathname: string) => {
+    // Handle home route - both "/" and "/browse" lead to BrowseBoats
+    if (pathname === "/" || pathname === "/browse") {
+      return location.pathname === "/" || location.pathname === "/browse";
+    }
+    return location.pathname === pathname;
+  };
+
   return (
     <header className="w-full h-[78px] bg-white border-b border-gray-500/25 flex items-center justify-between px-4 md:px-6 lg:px-10">
       <Link to={isAuthenticated ? "/" : "/welcome"} className="flex-shrink-0">
@@ -43,22 +54,45 @@ export default function Header() {
         <nav className="hidden md:flex items-center gap-4 lg:gap-6">
           <Link
             to="/search"
-            className="text-gray-900 font-medium text-base hover:text-blue-primary transition-colors"
+            className={cn(
+              "font-medium text-base transition-colors",
+              isLinkActive("/search")
+                ? "text-blue-primary font-bold"
+                : "text-gray-900 hover:text-blue-primary"
+            )}
           >
             Search
           </Link>
-          <Link to="/" className="text-blue-primary font-bold text-base">
+          <Link
+            to="/"
+            className={cn(
+              "font-medium text-base transition-colors",
+              isLinkActive("/")
+                ? "text-blue-primary font-bold"
+                : "text-gray-900 hover:text-blue-primary"
+            )}
+          >
             Browse Boats
           </Link>
           <Link
             to="/bookings"
-            className="text-gray-900 font-medium text-base hover:text-blue-primary transition-colors"
+            className={cn(
+              "font-medium text-base transition-colors",
+              isLinkActive("/bookings")
+                ? "text-blue-primary font-bold"
+                : "text-gray-900 hover:text-blue-primary"
+            )}
           >
             My Bookings
           </Link>
           <Link
             to="/membership"
-            className="text-gray-900 font-medium text-base hover:text-blue-primary transition-colors"
+            className={cn(
+              "font-medium text-base transition-colors",
+              isLinkActive("/membership")
+                ? "text-blue-primary font-bold"
+                : "text-gray-900 hover:text-blue-primary"
+            )}
           >
             Membership
           </Link>
