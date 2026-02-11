@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { MapPin, Calendar, Clock, Timer, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useBoatLocations } from "@/hooks/useBoatFilters";
+import { generateAvailableDates, formatDateForDisplay } from "@/utils/dateHelper";
 
 export default function Search() {
   const navigate = useNavigate();
+  const { data: locationsData, isLoading: locationsLoading } = useBoatLocations();
+
+  // Generate available dates for next 30 days
+  const availableDates = useMemo(() => generateAvailableDates(30), []);
+
+  const locations = locationsData?.data || [];
+
   const [searchParams, setSearchParams] = useState({
     location: "",
     date: "",
@@ -21,8 +30,22 @@ export default function Search() {
   });
 
   const handleSearch = () => {
-    // Navigate to browse boats page with search params
-    navigate("/");
+    // Build query string with search parameters
+    const params = new URLSearchParams();
+
+    // Only add filters that are relevant to /api/fleets
+    if (searchParams.location) {
+      params.append("location", searchParams.location);
+    }
+
+    if (searchParams.date) {
+      params.append("date", searchParams.date);
+    }
+
+    // Note: startTime, duration, and passengers are for booking flow, not search
+
+    // Navigate to browse page with search params
+    navigate(`/browse?${params.toString()}`);
   };
 
   return (
@@ -65,17 +88,18 @@ export default function Search() {
                   onValueChange={(value) =>
                     setSearchParams({ ...searchParams, location: value })
                   }
+                  disabled={locationsLoading}
                 >
                   <SelectTrigger className="bg-white border-gray-300">
-                    <SelectValue placeholder="Any" />
+                    <SelectValue placeholder={locationsLoading ? "Loading..." : "Any"} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="any">Any</SelectItem>
-                    <SelectItem value="marina-bay">Marina Bay</SelectItem>
-                    <SelectItem value="harbor-club">
-                      Phillippi Harbor Club
-                    </SelectItem>
-                    <SelectItem value="sarasota-bay">Sarasota Bay</SelectItem>
+                    <SelectItem value="">Any</SelectItem>
+                    {locations.map((location) => (
+                      <SelectItem key={location} value={location}>
+                        {location.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -96,11 +120,11 @@ export default function Search() {
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="2026-01-16">Jan 16, 2026</SelectItem>
-                    <SelectItem value="2026-01-17">Jan 17, 2026</SelectItem>
-                    <SelectItem value="2026-01-18">Jan 18, 2026</SelectItem>
-                    <SelectItem value="2026-01-19">Jan 19, 2026</SelectItem>
-                    <SelectItem value="2026-01-20">Jan 20, 2026</SelectItem>
+                    {availableDates.map((date) => (
+                      <SelectItem key={date} value={date}>
+                        {formatDateForDisplay(date)}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
