@@ -52,42 +52,26 @@ export interface MemberProfile {
   updated_at: string;
 }
 
+/**
+ * Profile update request - only user-editable fields
+ * Payment, membership, and system fields are handled by Laravel backend
+ */
 export interface UpdateProfileRequest {
-  /* Personal Information */
   first_name?: string;
   last_name?: string;
   phone?: string;
   date_of_birth?: string;
   gender?: string;
-
-  /* Address Information */
   address_line_1?: string;
   address_line_2?: string;
   city?: string;
   state?: string;
   zip_code?: string;
-
-  /* Emergency Contact */
   emergency_contact_name?: string;
   emergency_contact_phone?: string;
   emergency_contact_relation?: string;
-
-  /* Membership Details */
-  membership_type?: string;
-  preferred_location?: string;
-  auto_renewal?: boolean;
-
-  /* Payment Information */
-  payment_method?: string;
-  card_last_four?: string;
-  card_expiry?: string;
-
-  /* Additional Info */
   notes?: string;
   referral_source?: string;
-
-  /* Profile */
-  profile_photo?: string;
 }
 
 export interface ProfileApiResponse {

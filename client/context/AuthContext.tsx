@@ -5,16 +5,19 @@ interface User {
   id: string;
   email: string;
   loginMethod: "otp" | "password";
-  profile?: MemberProfile;
+  profile?: MemberProfile; // Full profile from login response
 }
 
 interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
+  isNewLogin: boolean; // Flag to track if user just logged in
   login: (user: User, tokenData?: { accessToken: string; refreshToken: string }) => void;
   logout: () => void;
   loading: boolean;
+  updateProfile: (profile: MemberProfile) => void; // Update profile after save
+  clearNewLoginFlag: () => void; // Clear the new login flag after redirecting
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -26,6 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isNewLogin, setIsNewLogin] = useState(false);
 
   // Check authentication status on app load
   useEffect(() => {
@@ -54,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const login = (newUser: User, tokenData?: { accessToken: string; refreshToken: string }) => {
     setUser(newUser);
     setIsAuthenticated(true);
+    setIsNewLogin(true); // Mark as new login to trigger profile check
 
     // Store user info in localStorage
     localStorage.setItem("user", JSON.stringify(newUser));
@@ -69,14 +74,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(null);
     setIsAuthenticated(false);
     setToken(null);
+    setIsNewLogin(false);
 
     // Clear from localStorage
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
   };
 
+  const clearNewLoginFlag = () => {
+    setIsNewLogin(false);
+  };
+
+  const updateProfile = (profile: MemberProfile) => {
+    setUser((prevUser) => {
+      if (!prevUser) return null;
+      const updatedUser = { ...prevUser, profile };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, token, isNewLogin, login, logout, loading, updateProfile, clearNewLoginFlag }}>
       {children}
     </AuthContext.Provider>
   );

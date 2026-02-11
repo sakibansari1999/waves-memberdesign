@@ -1,19 +1,21 @@
 import { useState, useEffect } from "react";
-import { User, Mail, Phone, UserPlus, AlertCircle, CheckCircle } from "lucide-react";
+import { User, Mail, Phone, UserPlus, AlertCircle, CheckCircle, Lock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchProfile, saveProfile } from "@/utils/api";
+import { isProfileComplete } from "@/utils/profileValidation";
 import { MemberProfile, UpdateProfileRequest, SaveProfileResponse } from "@shared/types";
 
 export default function Profile() {
-  const { user } = useAuth();
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, updateProfile, isNewLogin, clearNewLoginFlag } = useAuth();
+  const [isLoading, setIsLoading] = useState(!user?.profile); // Only load if no profile in auth
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
   const [showEmergencyContact, setShowEmergencyContact] = useState(false);
+  const [isProfileIncomplete, setIsProfileIncomplete] = useState(false);
 
   const [formData, setFormData] = useState<Partial<MemberProfile>>({
     first_name: "",
@@ -30,14 +32,6 @@ export default function Profile() {
     emergency_contact_name: "",
     emergency_contact_phone: "",
     emergency_contact_relation: "",
-    membership_type: "",
-    membership_start_date: "",
-    billing_cycle: "",
-    preferred_location: "",
-    auto_renewal: false,
-    payment_method: "",
-    card_last_four: "",
-    card_expiry: "",
     notes: "",
     referral_source: "",
   });
@@ -48,11 +42,26 @@ export default function Profile() {
       try {
         setIsLoading(true);
         setError("");
-        const response = await fetchProfile<{ data: MemberProfile }>();
-        setFormData(response.data);
-        // Show emergency contact section if data exists
-        if (response.data.emergency_contact_name) {
-          setShowEmergencyContact(true);
+
+        // Use profile from auth context if available (from login response)
+        let profileData = user?.profile;
+
+        // If no profile in auth context, fetch from API
+        if (!profileData) {
+          const response = await fetchProfile<{ data: MemberProfile }>();
+          profileData = response.data;
+        }
+
+        if (profileData) {
+          setFormData(profileData);
+          // Check if profile is incomplete (only on new login)
+          if (isNewLogin) {
+            setIsProfileIncomplete(!isProfileComplete(profileData));
+          }
+          // Show emergency contact section if data exists
+          if (profileData.emergency_contact_name) {
+            setShowEmergencyContact(true);
+          }
         }
       } catch (err) {
         setError(
@@ -64,7 +73,16 @@ export default function Profile() {
     };
 
     loadProfile();
-  }, []);
+  }, [user?.profile, isNewLogin]);
+
+  // Clear the new login flag when leaving the profile page
+  useEffect(() => {
+    return () => {
+      if (isNewLogin) {
+        clearNewLoginFlag();
+      }
+    };
+  }, [isNewLogin, clearNewLoginFlag]);
 
   const handleInputChange = (
     field: keyof MemberProfile,
@@ -80,18 +98,45 @@ export default function Profile() {
     setIsSaving(true);
 
     try {
-      // Prepare update payload - only include fields that have values
+      // Prepare update payload - only include editable fields with values
       const updateData: UpdateProfileRequest = {};
-      (Object.keys(formData) as Array<keyof MemberProfile>).forEach((key) => {
+
+      // List of fields that users can edit
+      const editableFields: (keyof UpdateProfileRequest)[] = [
+        "first_name",
+        "last_name",
+        "phone",
+        "date_of_birth",
+        "gender",
+        "address_line_1",
+        "address_line_2",
+        "city",
+        "state",
+        "zip_code",
+        "emergency_contact_name",
+        "emergency_contact_phone",
+        "emergency_contact_relation",
+        "notes",
+        "referral_source",
+      ];
+
+      // Only include editable fields that have values
+      editableFields.forEach((key) => {
         const value = formData[key];
         if (value !== null && value !== "" && value !== false) {
-          updateData[key as keyof UpdateProfileRequest] = value as never;
+          updateData[key] = value as never;
         }
       });
 
       const response = await saveProfile<SaveProfileResponse>(updateData);
-      setSuccessMessage(response.message || "Profile saved successfully!");
       
+      // Update the profile in auth context
+      if (response.data) {
+        updateProfile(response.data);
+      }
+
+      setSuccessMessage(response.message || "Profile saved successfully!");
+
       // Clear success message after 3 seconds
       setTimeout(() => setSuccessMessage(""), 3000);
     } catch (err) {
@@ -127,10 +172,14 @@ export default function Profile() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="text-gray-900 text-3xl font-bold mb-2">
-            Your Profile
+            {isNewLogin && isProfileIncomplete
+              ? "Complete Your Profile"
+              : "Edit Your Profile"}
           </h1>
           <p className="text-gray-500 text-base">
-            Manage your account information and preferences
+            {isNewLogin && isProfileIncomplete
+              ? "Please fill in your profile details to get started"
+              : "Manage your account information and preferences"}
           </p>
         </div>
 
@@ -400,9 +449,7 @@ export default function Profile() {
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label
-                      className="text-gray-900 text-sm"
-                    >
+                    <Label className="text-gray-900 text-sm">
                       Contact Name
                     </Label>
                     <Input
@@ -420,9 +467,7 @@ export default function Profile() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label
-                      className="text-gray-900 text-sm"
-                    >
+                    <Label className="text-gray-900 text-sm">
                       Relationship
                     </Label>
                     <Input
@@ -504,6 +549,99 @@ export default function Profile() {
                   className="bg-gray-50 border-gray-300"
                   disabled={isSaving}
                 />
+              </div>
+            </div>
+          </div>
+
+          {/* Membership & Payment Information (Read-only) */}
+          <div className="border-t border-gray-200 pt-8">
+            <div className="flex items-center gap-2 mb-4">
+              <Lock className="w-5 h-5 text-gray-500" />
+              <h2 className="text-gray-900 text-lg font-semibold">
+                Membership & Payment Information
+              </h2>
+            </div>
+            <p className="text-gray-500 text-sm mb-4">
+              These settings are managed by our support team. Contact us to make changes.
+            </p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-900 text-sm font-medium">
+                    Membership Type
+                  </Label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm capitalize">
+                    {formData.membership_type || "—"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-900 text-sm font-medium">
+                    Membership Start Date
+                  </Label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm">
+                    {formData.membership_start_date
+                      ? new Date(formData.membership_start_date).toLocaleDateString()
+                      : "—"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-900 text-sm font-medium">
+                    Billing Cycle
+                  </Label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm capitalize">
+                    {formData.billing_cycle || "—"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-900 text-sm font-medium">
+                    Preferred Location
+                  </Label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm capitalize">
+                    {formData.preferred_location?.replace("-", " ") || "—"}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-900 text-sm font-medium">
+                    Auto-Renewal
+                  </Label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm">
+                    {formData.auto_renewal ? "Enabled" : "Disabled"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-900 text-sm font-medium">
+                    Payment Method
+                  </Label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm capitalize">
+                    {formData.payment_method?.replace("-", " ") || "—"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-900 text-sm font-medium">
+                    Card Last Four Digits
+                  </Label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm">
+                    {formData.card_last_four ? `•••• ${formData.card_last_four}` : "—"}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-900 text-sm font-medium">
+                    Card Expiry
+                  </Label>
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm">
+                    {formData.card_expiry || "—"}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
