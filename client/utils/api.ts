@@ -222,3 +222,161 @@ export async function fetchBoatTypes(): Promise<{ data: string[] }> {
 export async function fetchBoatFeatures(): Promise<{ data: string[] }> {
   return apiCall<{ data: string[] }>('/api/fleets/features');
 }
+
+/**
+ * Reservation API Calls
+ */
+
+export interface AvailableDate {
+  date: string;
+  dayOfWeek: string;
+  available: boolean;
+  availableSlots: number;
+}
+
+export interface AvailableDateResponse {
+  data: AvailableDate[];
+}
+
+export interface TimeSlot {
+  time: string;
+  label: string;
+  available: boolean;
+}
+
+export interface AvailableTimesResponse {
+  data: TimeSlot[];
+}
+
+export interface Destination {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface DestinationsResponse {
+  data: Destination[];
+}
+
+export interface BookingPayload {
+  fleet_id: number;
+  start_date: string;
+  start_time: string;
+  duration_hours: number;
+  destination?: string;
+  driver_requested?: boolean;
+  customer_notes?: string;
+}
+
+export interface ReservationData {
+  id: number;
+  booking_code: string;
+  fleet_id: number;
+  member_id: number;
+  start_date: string;
+  start_time: string;
+  end_date: string;
+  end_time: string;
+  duration_hours: number;
+  destination?: string;
+  driver_requested: boolean;
+  customer_notes?: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ReservationResponse {
+  data: ReservationData;
+}
+
+export interface AvailabilityCheck {
+  available: boolean;
+  message: string;
+  conflicting_reservation: number | null;
+}
+
+/**
+ * Get available dates for a specific boat
+ */
+export async function fetchAvailableDates(
+  fleetId: number,
+  month?: number,
+  year?: number
+): Promise<AvailableDateResponse> {
+  const params = new URLSearchParams({
+    fleet_id: fleetId.toString(),
+  });
+
+  if (month) params.append('month', month.toString());
+  if (year) params.append('year', year.toString());
+
+  const queryString = params.toString();
+  return apiCall<AvailableDateResponse>(
+    `/api/reservations/available-dates?${queryString}`
+  );
+}
+
+/**
+ * Get available time slots for a boat and date
+ */
+export async function fetchAvailableTimes(
+  fleetId: number,
+  date: string
+): Promise<AvailableTimesResponse> {
+  const params = new URLSearchParams({
+    fleet_id: fleetId.toString(),
+    date: date,
+  });
+
+  return apiCall<AvailableTimesResponse>(
+    `/api/reservations/available-times?${params.toString()}`
+  );
+}
+
+/**
+ * Get list of destinations
+ */
+export async function fetchDestinations(): Promise<DestinationsResponse> {
+  return apiCall<DestinationsResponse>('/api/reservations/destinations');
+}
+
+/**
+ * Check availability for a specific time slot
+ */
+export async function checkAvailability(
+  fleetId: number,
+  date: string,
+  startTime: string,
+  durationHours: number
+): Promise<AvailabilityCheck> {
+  const params = new URLSearchParams({
+    fleet_id: fleetId.toString(),
+    date: date,
+    start_time: startTime,
+    duration_hours: durationHours.toString(),
+  });
+
+  return apiCall<AvailabilityCheck>(
+    `/api/reservations/check-availability?${params.toString()}`
+  );
+}
+
+/**
+ * Create a reservation (booking)
+ */
+export async function createReservation(
+  payload: BookingPayload
+): Promise<ReservationResponse> {
+  return apiCall<ReservationResponse>('/api/reservations', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+/**
+ * Get reservation details
+ */
+export async function fetchReservation(id: number): Promise<ReservationResponse> {
+  return apiCall<ReservationResponse>(`/api/reservations/${id}`);
+}
