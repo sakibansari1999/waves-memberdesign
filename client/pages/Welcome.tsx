@@ -11,7 +11,7 @@ export default function Welcome() {
       <div className="mb-8">
         <div className="flex flex-col items-center">
           {/* Wave SVG Logo */}
-          <svg
+          {/* <svg
             width="120"
             height="40"
             viewBox="0 0 120 40"
@@ -37,7 +37,7 @@ export default function Welcome() {
           </svg>
           <h1 className="text-white text-3xl md:text-4xl font-bold tracking-wider">
             WAVES
-          </h1>
+          </h1> */}
         </div>
       </div>
 
