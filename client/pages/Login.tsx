@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Phone, Mail } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,14 +13,19 @@ import {
 
 export default function Login() {
   const navigate = useNavigate();
-  const [loginMethod, setLoginMethod] = useState<"phone" | "email">("phone");
+  const [loginMethod, setLoginMethod] = useState<"otp" | "password">("otp");
   const [showOTP, setShowOTP] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [otpValue, setOtpValue] = useState("");
 
   const handleSendOTP = (e: React.FormEvent) => {
     e.preventDefault();
+    // Validate email
+    if (!email) {
+      return;
+    }
     // Simulate sending OTP
     setShowOTP(true);
   };
@@ -34,12 +39,21 @@ export default function Login() {
     }
   };
 
+  const handlePasswordLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Simulate password verification
+    if (email && password) {
+      // Navigate to home or dashboard
+      navigate("/");
+    }
+  };
+
   const handleResend = () => {
     // Simulate resending OTP
     console.log("Resending OTP...");
   };
 
-  if (showOTP) {
+  if (showOTP && loginMethod === "otp") {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center py-12 px-4">
         <div className="w-full max-w-[540px] bg-white rounded-lg shadow-lg p-8">
@@ -49,7 +63,7 @@ export default function Login() {
               Verify OTP
             </h1>
             <p className="text-gray-500 text-base">
-              Enter the 6-digit code sent to your {loginMethod}
+              Enter the 6-digit code sent to {email}
             </p>
           </div>
 
@@ -110,67 +124,47 @@ export default function Login() {
             Welcome Back
           </h1>
           <p className="text-gray-500 text-base">
-            Sign in with your phone or email to continue
+            Sign in with OTP or email & password to continue
           </p>
         </div>
 
         {/* Login Form */}
         <Tabs
           value={loginMethod}
-          onValueChange={(value) => setLoginMethod(value as "phone" | "email")}
+          onValueChange={(value) => {
+            setLoginMethod(value as "otp" | "password");
+            // Reset form when switching tabs
+            setEmail("");
+            setPassword("");
+            setOtpValue("");
+          }}
           className="w-full"
         >
           <TabsList className="grid w-full grid-cols-2 mb-6">
             <TabsTrigger
-              value="phone"
-              className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
-            >
-              <Phone className="w-4 h-4" />
-              Phone
-            </TabsTrigger>
-            <TabsTrigger
-              value="email"
+              value="otp"
               className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
             >
               <Mail className="w-4 h-4" />
-              Email
+              OTP Login
+            </TabsTrigger>
+            <TabsTrigger
+              value="password"
+              className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
+            >
+              <Lock className="w-4 h-4" />
+              Email & Password
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="phone">
+          <TabsContent value="otp">
             <form onSubmit={handleSendOTP} className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="phone" className="text-gray-900 text-sm">
-                  Mobile Number
-                </Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="+1 (555) 000-0000"
-                  className="bg-white border-gray-300"
-                  required
-                />
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold"
-              >
-                Send OTP
-              </Button>
-            </form>
-          </TabsContent>
-
-          <TabsContent value="email">
-            <form onSubmit={handleSendOTP} className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-900 text-sm">
+                <Label htmlFor="email-otp" className="text-gray-900 text-sm">
                   Email Address
                 </Label>
                 <Input
-                  id="email"
+                  id="email-otp"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -185,6 +179,60 @@ export default function Login() {
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold"
               >
                 Send OTP
+              </Button>
+            </form>
+          </TabsContent>
+
+          <TabsContent value="password">
+            <form onSubmit={handlePasswordLogin} className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="email-password" className="text-gray-900 text-sm">
+                  Email Address
+                </Label>
+                <Input
+                  id="email-password"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="john@example.com"
+                  className="bg-white border-gray-300"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password" className="text-gray-900 text-sm">
+                  Password
+                </Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="bg-white border-gray-300 pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-6 text-base font-semibold"
+              >
+                Sign In
               </Button>
             </form>
           </TabsContent>
