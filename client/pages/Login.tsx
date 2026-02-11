@@ -11,6 +11,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { useAuth } from "@/context/AuthContext";
+import { publicApiCall } from "@/utils/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -49,32 +50,20 @@ export default function Login() {
     }
 
     try {
-      // Call Laravel Sanctum API to send OTP
-      const response = await fetch("/api/auth/send-otp", {
+      // Call Laravel Sanctum API to send OTP using dynamic base URL from .env
+      await publicApiCall("/api/auth/send-otp", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
         body: JSON.stringify({ email }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(
-          data.message || data.errors?.email?.[0] || "Failed to send OTP"
-        );
-        setIsLoading(false);
-        return;
-      }
 
       // OTP sent successfully
       setShowOTP(true);
       setResendTimer(30); // 30 seconds cooldown
       setIsLoading(false);
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(
+        err instanceof Error ? err.message : "Network error. Please try again."
+      );
       setIsLoading(false);
     }
   };
@@ -92,27 +81,13 @@ export default function Login() {
     }
 
     try {
-      // Call Laravel Sanctum API to verify OTP
-      const response = await fetch("/api/auth/verify-otp", {
+      // Call Laravel Sanctum API to verify OTP using dynamic base URL from .env
+      const data = await publicApiCall<{
+        data: { user: { id: number; email: string }; token: string };
+      }>("/api/auth/verify-otp", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
         body: JSON.stringify({ email, otp: otpValue }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(
-          data.message ||
-            data.errors?.otp?.[0] ||
-            "Failed to verify OTP. Please try again."
-        );
-        setIsLoading(false);
-        return;
-      }
 
       // OTP verified successfully - login user
       if (data.data?.user && data.data?.token) {
@@ -132,7 +107,9 @@ export default function Login() {
         setIsLoading(false);
       }
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(
+        err instanceof Error ? err.message : "Network error. Please try again."
+      );
       setIsLoading(false);
     }
   };
@@ -155,27 +132,13 @@ export default function Login() {
     }
 
     try {
-      // Call Laravel Sanctum API for password login
-      const response = await fetch("/api/auth/login", {
+      // Call Laravel Sanctum API for password login using dynamic base URL from .env
+      const data = await publicApiCall<{
+        data: { user: { id: number; email: string }; token: string };
+      }>("/api/auth/login", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
         body: JSON.stringify({ email, password }),
       });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(
-          data.message ||
-            data.errors?.email?.[0] ||
-            "Invalid email or password"
-        );
-        setIsLoading(false);
-        return;
-      }
 
       // Password verified successfully - login user
       if (data.data?.user && data.data?.token) {
@@ -195,7 +158,9 @@ export default function Login() {
         setIsLoading(false);
       }
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(
+        err instanceof Error ? err.message : "Network error. Please try again."
+      );
       setIsLoading(false);
     }
   };
@@ -203,25 +168,17 @@ export default function Login() {
   const handleResend = async () => {
     setIsLoading(true);
     try {
-      // Call Laravel Sanctum API to resend OTP
-      const response = await fetch("/api/auth/send-otp", {
+      // Call Laravel Sanctum API to resend OTP using dynamic base URL from .env
+      await publicApiCall("/api/auth/send-otp", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
         body: JSON.stringify({ email }),
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setResendTimer(30); // Reset timer
-      } else {
-        setError(data.message || "Failed to resend OTP");
-      }
+      setResendTimer(30); // Reset timer
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(
+        err instanceof Error ? err.message : "Failed to resend OTP"
+      );
     } finally {
       setIsLoading(false);
     }
