@@ -9,6 +9,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Header from "./components/Header";
+import RootPage from "./pages/RootPage";
 import Welcome from "./pages/Welcome";
 import BrowseBoats from "./pages/BrowseBoats";
 import BookingFlow from "./pages/BookingFlow";
@@ -34,7 +35,9 @@ const App = () => (
             {/* Public Routes */}
             <Route path="/welcome" element={<Welcome />} />
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={<Search />} />
+
+            {/* Root Route - Conditional: Welcome if not logged in, Search if logged in */}
+            <Route path="/" element={<RootPage />} />
 
             {/* Protected Routes */}
             <Route
@@ -50,14 +53,6 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <BookingFlow />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/search"
-              element={
-                <ProtectedRoute>
-                  <Search />
                 </ProtectedRoute>
               }
             />
