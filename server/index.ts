@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { handleDemo } from "./routes/demo";
+import { getProfile, updateProfile } from "./routes/profile";
 
 export function createServer() {
   const app = express();
@@ -18,6 +19,10 @@ export function createServer() {
   });
 
   app.get("/api/demo", handleDemo);
+
+  // Profile routes
+  app.get("/api/profile", getProfile);
+  app.put("/api/profile", updateProfile);
 
   return app;
 }

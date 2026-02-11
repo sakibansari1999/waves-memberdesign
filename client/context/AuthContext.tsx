@@ -5,7 +5,7 @@ interface User {
   id: string;
   email: string;
   loginMethod: "otp" | "password";
-  profile?: MemberProfile;
+  profile?: MemberProfile; // Full profile from login response
 }
 
 interface AuthContextType {
@@ -15,6 +15,7 @@ interface AuthContextType {
   login: (user: User, tokenData?: { accessToken: string; refreshToken: string }) => void;
   logout: () => void;
   loading: boolean;
+  updateProfile: (profile: MemberProfile) => void; // Update profile after save
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -75,8 +76,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem("accessToken");
   };
 
+  const updateProfile = (profile: MemberProfile) => {
+    setUser((prevUser) => {
+      if (!prevUser) return null;
+      const updatedUser = { ...prevUser, profile };
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      return updatedUser;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, token, login, logout, loading }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, token, login, logout, loading, updateProfile }}>
       {children}
     </AuthContext.Provider>
   );

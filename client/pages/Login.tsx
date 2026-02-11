@@ -95,6 +95,7 @@ export default function Login() {
           id: String(data.data.user.id),
           email: data.data.user.email,
           loginMethod: "otp" as const,
+          profile: data.data.user, // Store full profile from login response
         };
         login(newUser, {
           accessToken: data.data.token,
@@ -146,6 +147,7 @@ export default function Login() {
           id: String(data.data.user.id),
           email: data.data.user.email,
           loginMethod: "password" as const,
+          profile: data.data.user, // Store full profile from login response
         };
         login(newUser, {
           accessToken: data.data.token,
