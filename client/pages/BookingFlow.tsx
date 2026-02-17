@@ -32,11 +32,23 @@ interface BookingData {
   notes: string;
 }
 
+
 export default function BookingFlow() {
   const navigate = useNavigate();
   const location = useLocation();
   const boat = location.state?.boat as Boat | undefined;
+const today = useMemo(() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+}, []);
 
+const maxDate = useMemo(() => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() + 30);
+  return d;
+}, []);
   const [step, setStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData>({
     date: "",
@@ -265,36 +277,51 @@ export default function BookingFlow() {
                       ) : datesError ? (
                         <div className="text-red-600 text-sm">Failed to load dates</div>
                       ) : (
-                        <Select
-                          value={bookingData.date}
-                          onValueChange={(value) =>
-                            handleInputChange("date", value)
-                          }
-                        >
-                          <SelectTrigger
-                            id="date"
-                            className="bg-white border-gray-300"
-                          >
-                            <SelectValue placeholder="Select Date" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {availableDatesData?.data?.map((dateOption) => (
-                              <SelectItem
-                                key={dateOption.date}
-                                value={dateOption.date}
-                                disabled={!dateOption.available}
-                              >
-                                {new Date(dateOption.date).toLocaleDateString('en-US', {
-                                  weekday: 'long',
-                                  month: 'long',
-                                  day: 'numeric',
-                                  year: 'numeric',
-                                })}
-                                {!dateOption.available && ' (Unavailable)'}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+ <Select
+  value={bookingData.date}
+  onValueChange={(value) =>
+    handleInputChange("date", value)
+  }
+>
+  <SelectTrigger
+    id="date"
+    className="bg-white border-gray-300"
+  >
+    <SelectValue placeholder="Select Date" />
+  </SelectTrigger>
+
+  <SelectContent>
+    {availableDatesData?.data
+      ?.filter((dateOption) => {
+        // safer parsing (avoids timezone shift)
+        const dateObj = new Date(dateOption.date + "T00:00:00");
+        dateObj.setHours(0, 0, 0, 0);
+
+        // show only today → +30 days
+        return dateObj >= today && dateObj <= maxDate;
+      })
+      .map((dateOption) => {
+        const dateObj = new Date(dateOption.date + "T00:00:00");
+
+        return (
+          <SelectItem
+            key={dateOption.date}
+            value={dateOption.date}
+            disabled={!dateOption.available}
+          >
+            {dateObj.toLocaleDateString("en-US", {
+              weekday: "long",
+              month: "long",
+              day: "numeric",
+              year: "numeric",
+            })}
+            {!dateOption.available ? " (Unavailable)" : ""}
+          </SelectItem>
+        );
+      })}
+  </SelectContent>
+</Select>
+
                       )}
                     </div>
 
