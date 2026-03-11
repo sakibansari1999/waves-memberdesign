@@ -20,6 +20,7 @@ import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import Logout from "./pages/Logout";
 import Placeholder from "./pages/Placeholder";
+import Billing from "./pages/Billing";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -94,6 +95,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <Placeholder />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/billing"
+              element={
+                <ProtectedRoute>
+                  <Billing />
                 </ProtectedRoute>
               }
             />
