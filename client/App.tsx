@@ -14,7 +14,6 @@ import Welcome from "./pages/Welcome";
 import Dashboard from "./pages/Dashboard";
 import BrowseBoats from "./pages/BrowseBoats";
 import BookingFlow from "./pages/BookingFlow";
-import MyBookings from "./pages/MyBookings";
 import Search from "./pages/Search";
 import Profile from "./pages/Profile";
 import Login from "./pages/Login";
@@ -66,14 +65,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/bookings"
-              element={
-                <ProtectedRoute>
-                  <MyBookings />
-                </ProtectedRoute>
-              }
-            />
+           
             <Route
               path="/profile"
               element={

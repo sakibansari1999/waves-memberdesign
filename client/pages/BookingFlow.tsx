@@ -768,7 +768,7 @@ const maxDate = useMemo(() => {
                   {/* Action Buttons */}
                   <div className="space-y-3">
                     <Button
-                      onClick={() => navigate("/bookings")}
+                      onClick={() => navigate("/my-trips")}
                       className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"
                     >
                       View booking details
