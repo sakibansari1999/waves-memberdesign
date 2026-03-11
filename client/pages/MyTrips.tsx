@@ -268,7 +268,7 @@ export default function MyTrips() {
 
   return (
     <div className="min-h-screen bg-[#F5F7FA]">
-      <div className="max-w-[1000px] mx-auto px-4 sm:px-6 lg:px-8 xl:px-24 py-12">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
 
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-black/[0.08]">
