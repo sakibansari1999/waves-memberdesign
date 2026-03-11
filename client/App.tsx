@@ -11,6 +11,7 @@ import { ProtectedRoute } from "./components/ProtectedRoute";
 import Header from "./components/Header";
 import RootPage from "./pages/RootPage";
 import Welcome from "./pages/Welcome";
+import Dashboard from "./pages/Dashboard";
 import BrowseBoats from "./pages/BrowseBoats";
 import BookingFlow from "./pages/BookingFlow";
 import MyBookings from "./pages/MyBookings";
@@ -45,6 +46,14 @@ const App = () => (
               element={
                 <ProtectedRoute>
                   <BrowseBoats />
+                </ProtectedRoute>
+              }
+            />
+                  <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
                 </ProtectedRoute>
               }
             />
