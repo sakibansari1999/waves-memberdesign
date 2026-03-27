@@ -17,7 +17,7 @@ import { isProfileComplete } from "@/utils/profileValidation";
 export default function Login() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const [loginMethod, setLoginMethod] = useState<"otp" | "password">("otp");
+  const [loginMethod, setLoginMethod] = useState<"otp" | "password">("password");
   const [showOTP, setShowOTP] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
