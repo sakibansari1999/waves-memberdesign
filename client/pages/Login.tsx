@@ -337,6 +337,13 @@ export default function Login() {
           className="w-full"
         >
           <TabsList className="grid w-full grid-cols-2 mb-6">
+             <TabsTrigger
+              value="password"
+              className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
+            >
+              <Lock className="w-4 h-4" />
+              Email & Password
+            </TabsTrigger>
             <TabsTrigger
               value="otp"
               className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
@@ -344,13 +351,7 @@ export default function Login() {
               <Mail className="w-4 h-4" />
               OTP Login
             </TabsTrigger>
-            <TabsTrigger
-              value="password"
-              className="flex items-center gap-2 data-[state=active]:bg-blue-50 data-[state=active]:text-blue-600"
-            >
-              <Lock className="w-4 h-4" />
-              Email & Password
-            </TabsTrigger>
+           
           </TabsList>
 
           <TabsContent value="otp">

@@ -38,7 +38,7 @@ export async function apiCall<T>(
   if (response.status === 401) {
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
-    window.location.href = "/login";
+    
     throw new Error("Unauthorized. Please login again.");
   }
 

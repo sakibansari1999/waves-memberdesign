@@ -1,3 +1,14 @@
+interface UsageStatsProps {
+  stats: {
+    hours_this_month: number;
+    hours_this_month_subtitle: string;
+    upcoming_hours: number;
+    upcoming_hours_subtitle: string;
+    lifetime_trips: number;
+    lifetime_trips_subtitle: string;
+  };
+}
+
 interface StatCardProps {
   label: string;
   value: string;
@@ -18,24 +29,36 @@ function StatCard({ label, value, subtitle }: StatCardProps) {
   );
 }
 
-export default function UsageStats() {
+export default function UsageStats({ stats }: UsageStatsProps) {
+  const formatNumber = (num: number) => {
+    return Number(num || 0).toFixed(1);
+  };
+
+  if (!stats) {
+    return null;
+  }
+
   return (
     <div className="flex flex-row lg:flex-col gap-4 w-full lg:w-[320px] xl:w-[376px] flex-shrink-0">
+      
       <StatCard
         label="Hours This Month"
-        value="12.5"
-        subtitle="Top 10% of members"
+        value={formatNumber(stats.hours_this_month)}
+        subtitle={stats.hours_this_month_subtitle || "—"}
       />
+
       <StatCard
         label="Upcoming Hours"
-        value="6.0"
-        subtitle="2 reservations pending"
+        value={formatNumber(stats.upcoming_hours)}
+        subtitle={stats.upcoming_hours_subtitle || "—"}
       />
+
       <StatCard
         label="Lifetime Trips"
-        value="48"
-        subtitle="Member since 2021"
+        value={(stats.lifetime_trips ?? 0).toString()}
+        subtitle={stats.lifetime_trips_subtitle || "—"}
       />
+
     </div>
   );
 }
