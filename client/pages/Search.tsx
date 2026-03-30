@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Calendar, Clock, Timer, Users } from "lucide-react";
+import { MapPin, Calendar, Sun, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -16,24 +16,19 @@ export default function Search() {
   const navigate = useNavigate();
   const { data: locationsData, isLoading: locationsLoading } = useBoatLocations();
 
-  // Generate available dates for next 30 days
   const availableDates = useMemo(() => generateAvailableDates(30), []);
-
   const locations = locationsData?.data || [];
 
   const [searchParams, setSearchParams] = useState({
     location: "",
     date: "",
-    startTime: "",
-    duration: "",
+    slot: "",
     passengers: "",
   });
 
   const handleSearch = () => {
-    // Build query string with search parameters
     const params = new URLSearchParams();
 
-    // Only add filters that are relevant to /api/fleets
     if (searchParams.location && searchParams.location !== "any") {
       params.append("location", searchParams.location);
     }
@@ -42,15 +37,15 @@ export default function Search() {
       params.append("date", searchParams.date);
     }
 
-    // Note: startTime, duration, and passengers are for booking flow, not search
+    if (searchParams.slot && searchParams.slot !== "any") {
+      params.append("slot", searchParams.slot);
+    }
 
-    // Navigate to browse page with search params
     navigate(`/browse?${params.toString()}`);
   };
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section with Background Image */}
       <div
         className="relative bg-cover bg-center bg-no-repeat"
         style={{
@@ -59,12 +54,9 @@ export default function Search() {
           minHeight: "calc(100vh - 78px)",
         }}
       >
-        {/* Overlay for better text readability */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-transparent to-black/20" />
 
-        {/* Content Container */}
         <div className="relative max-w-[1440px] mx-auto px-4 md:px-6 lg:px-10 py-16 md:py-24">
-          {/* Hero Text */}
           <div className="text-center mb-12">
             <h1 className="text-white text-4xl md:text-5xl lg:text-6xl font-bold mb-4 drop-shadow-lg">
               Find Your Perfect Boat
@@ -74,9 +66,9 @@ export default function Search() {
             </p>
           </div>
 
-          {/* Search Form Card */}
           <div className="max-w-[960px] mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              
               {/* Location */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-gray-900 text-sm font-medium">
@@ -90,25 +82,28 @@ export default function Search() {
                   }
                   disabled={locationsLoading}
                 >
-                  <SelectTrigger className="bg-white border-gray-300">
+                  <SelectTrigger>
                     <SelectValue placeholder={locationsLoading ? "Loading..." : "Any"} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="any">Any</SelectItem>
                     {locations.map((location) => (
                       <SelectItem key={location} value={location}>
-                        {location.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                        {location
+                          .split("-")
+                          .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                          .join(" ")}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-              {/* Date */}
+              {/* Date (Start Date) */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-gray-900 text-sm font-medium">
                   <Calendar className="w-4 h-4" />
-                  Date
+                  Start Date
                 </label>
                 <Select
                   value={searchParams.date}
@@ -116,7 +111,7 @@ export default function Search() {
                     setSearchParams({ ...searchParams, date: value })
                   }
                 >
-                  <SelectTrigger className="bg-white border-gray-300">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -129,57 +124,24 @@ export default function Search() {
                 </Select>
               </div>
 
-              {/* Start Time */}
+              {/* Slot */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                  <Clock className="w-4 h-4" />
-                  Start Time
+                  <Sun className="w-4 h-4" />
+                  Slot
                 </label>
                 <Select
-                  value={searchParams.startTime}
+                  value={searchParams.slot}
                   onValueChange={(value) =>
-                    setSearchParams({ ...searchParams, startTime: value })
+                    setSearchParams({ ...searchParams, slot: value })
                   }
                 >
-                  <SelectTrigger className="bg-white border-gray-300">
+                  <SelectTrigger>
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="08:00">08:00 AM</SelectItem>
-                    <SelectItem value="09:00">09:00 AM</SelectItem>
-                    <SelectItem value="10:00">10:00 AM</SelectItem>
-                    <SelectItem value="11:00">11:00 AM</SelectItem>
-                    <SelectItem value="12:00">12:00 PM</SelectItem>
-                    <SelectItem value="13:00">01:00 PM</SelectItem>
-                    <SelectItem value="14:00">02:00 PM</SelectItem>
-                    <SelectItem value="15:00">03:00 PM</SelectItem>
-                    <SelectItem value="16:00">04:00 PM</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Duration */}
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                  <Timer className="w-4 h-4" />
-                  Duration
-                </label>
-                <Select
-                  value={searchParams.duration}
-                  onValueChange={(value) =>
-                    setSearchParams({ ...searchParams, duration: value })
-                  }
-                >
-                  <SelectTrigger className="bg-white border-gray-300">
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2">2 hours</SelectItem>
-                    <SelectItem value="3">3 hours</SelectItem>
-                    <SelectItem value="4">4 hours</SelectItem>
-                    <SelectItem value="5">5 hours</SelectItem>
-                    <SelectItem value="6">6 hours</SelectItem>
-                    <SelectItem value="8">8 hours</SelectItem>
+                    <SelectItem value="AM">AM</SelectItem>
+                    <SelectItem value="PM">PM</SelectItem>
                     <SelectItem value="full-day">Full Day</SelectItem>
                   </SelectContent>
                 </Select>
@@ -197,7 +159,7 @@ export default function Search() {
                     setSearchParams({ ...searchParams, passengers: value })
                   }
                 >
-                  <SelectTrigger className="bg-white border-gray-300">
+                  <SelectTrigger>
                     <SelectValue placeholder="Any" />
                   </SelectTrigger>
                   <SelectContent>
@@ -210,9 +172,9 @@ export default function Search() {
                   </SelectContent>
                 </Select>
               </div>
+
             </div>
 
-            {/* Search Button */}
             <Button
               onClick={handleSearch}
               className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"

@@ -87,6 +87,7 @@ export async function saveProfile<T>(
 export interface BoatFilters {
   search?: string;
   date?: string;
+    slot?: string; // ✅ ADD THIS
   location?: string | string[];
   boat_type?: string | string[];
   length_min?: number;
@@ -151,6 +152,15 @@ export async function fetchBoats(filters: BoatFilters = {}): Promise<BoatListRes
 
   if (filters.search) params.append('search', filters.search);
   if (filters.date) params.append('date', filters.date);
+ if (filters.slot) {
+  const mapping: Record<string, string> = {
+    AM: "AM",
+    PM: "PM",
+    "full-day": "FULL_DAY",
+  };
+
+  params.append('booking_type', mapping[filters.slot]);
+}
   if (filters.location) {
     const locations = Array.isArray(filters.location) ? filters.location : [filters.location];
     locations.forEach(loc => params.append('location', loc));

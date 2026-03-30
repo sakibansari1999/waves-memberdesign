@@ -1,5 +1,5 @@
 import { useAuth } from "@/context/AuthContext";
-import Welcome from "./Welcome";
+import Login from "./Login";
 import Search from "./Search";
 
 /**
@@ -24,7 +24,7 @@ export default function RootPage() {
 
   // Show Welcome for non-authenticated users
   if (!isAuthenticated) {
-    return <Welcome />;
+    return <Login />;
   }
 
   // Show Search for authenticated users

@@ -8,28 +8,31 @@ import { useBoats } from "@/hooks/useBoats";
 import { BoatFilters } from "@/utils/api";
 import { Button } from "@/components/ui/button";
 
+const MIN_LENGTH = 16;
+const MAX_LENGTH = 100;
+
 export default function BrowseBoats() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [selectedBoat, setSelectedBoat] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Filter state
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [slot, setSlot] = useState<string | null>(null);
   const [locations, setLocations] = useState<string[]>([]);
   const [boatTypes, setBoatTypes] = useState<string[]>([]);
-  const [lengthRange, setLengthRange] = useState<[number, number]>([16, 30]);
+  const [lengthRange, setLengthRange] = useState<[number, number]>([MIN_LENGTH, MAX_LENGTH]);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>("created_at");
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>("desc");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [hasSearchParams, setHasSearchParams] = useState(false);
 
-  // Load search params from URL on component mount
   useEffect(() => {
     const urlLocation = searchParams.get("location");
     const urlDate = searchParams.get("date");
+    const urlSlot = searchParams.get("slot");
 
-    if (urlLocation || urlDate) {
+    if (urlLocation || urlDate || urlSlot) {
       setHasSearchParams(true);
 
       if (urlLocation && urlLocation !== "any") {
@@ -39,24 +42,32 @@ export default function BrowseBoats() {
       if (urlDate) {
         setSelectedDate(urlDate);
       }
+
+      if (urlSlot) {
+        setSlot(urlSlot);
+      }
+    } else {
+      setHasSearchParams(false);
     }
   }, [searchParams]);
 
-  // Build filters object
-  const filters: BoatFilters = useMemo(() => ({
-    search: searchQuery || undefined,
-    date: selectedDate || undefined,
-    location: locations.length > 0 ? locations : undefined,
-    boat_type: boatTypes.length > 0 ? boatTypes : undefined,
-    length_min: lengthRange[0],
-    length_max: lengthRange[1],
-    features: selectedFeatures.length > 0 ? selectedFeatures : undefined,
-    sort: sortBy,
-    order: sortOrder,
-    per_page: 12,
-  }), [searchQuery, selectedDate, locations, boatTypes, lengthRange, selectedFeatures, sortBy, sortOrder]);
+  const filters: BoatFilters = useMemo(
+    () => ({
+      search: searchQuery || undefined,
+      date: selectedDate || undefined,
+      slot: slot || undefined,
+      location: locations.length > 0 ? locations : undefined,
+      boat_type: boatTypes.length > 0 ? boatTypes : undefined,
+      length_min: lengthRange[0],
+      length_max: lengthRange[1],
+      features: selectedFeatures.length > 0 ? selectedFeatures : undefined,
+      sort: sortBy,
+      order: sortOrder,
+      per_page: 12,
+    }),
+    [searchQuery, selectedDate, slot, locations, boatTypes, lengthRange, selectedFeatures, sortBy, sortOrder]
+  );
 
-  // Fetch boats with filters
   const { data: boatsResponse, isLoading, error } = useBoats(filters);
 
   const handleSelectBoat = (boat: any) => {
@@ -70,39 +81,41 @@ export default function BrowseBoats() {
   };
 
   const toggleSort = () => {
-    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    setSortOrder(sortOrder === "asc" ? "desc" : "asc");
   };
 
   const handleResetFilters = () => {
     setSearchQuery("");
     setSelectedDate(null);
+    setSlot(null);
     setLocations([]);
     setBoatTypes([]);
-    setLengthRange([16, 30]);
+    setLengthRange([MIN_LENGTH, MAX_LENGTH]);
     setSelectedFeatures([]);
     setSortBy("created_at");
     setSortOrder("desc");
     setHasSearchParams(false);
+
+    // Clear URL query params
+    setSearchParams({});
   };
 
   const boats = boatsResponse?.data || [];
 
-  // Format selected date for display
   const formatDateDisplay = (dateString: string | null) => {
     if (!dateString) return "Select a date";
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-      year: 'numeric'
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-10 py-5 flex flex-col lg:flex-row gap-5 lg:gap-10">
-        {/* Filters Sidebar */}
         <div className="hidden lg:block">
           <FiltersSidebar
             selectedDate={selectedDate}
@@ -118,20 +131,22 @@ export default function BrowseBoats() {
           />
         </div>
 
-        {/* Main Content */}
         <div className="flex-1">
-          {/* Header */}
           <div className="mb-6 flex items-start justify-between">
             <div>
               <h1 className="text-gray-900 text-2xl font-semibold mb-1">
                 {formatDateDisplay(selectedDate)}
               </h1>
               <p className="text-gray-500 text-sm">
-                {isLoading ? "Loading..." : `${boats.length} boat${boats.length !== 1 ? 's' : ''} found`}
+                {isLoading ? "Loading..." : `${boats.length} boat${boats.length !== 1 ? "s" : ""} found`}
               </p>
+              {slot && (
+                <p className="text-sm text-gray-500 mt-1">
+                  Slot: {slot === "full-day" ? "Full Day" : slot}
+                </p>
+              )}
             </div>
 
-            {/* Reset Filters Button - Show only when search params are active */}
             {hasSearchParams && (
               <Button
                 onClick={handleResetFilters}
@@ -144,7 +159,6 @@ export default function BrowseBoats() {
             )}
           </div>
 
-          {/* Search and Sort */}
           <div className="flex items-center justify-between mb-6">
             <div className="relative flex-1 max-w-[206px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
@@ -165,7 +179,6 @@ export default function BrowseBoats() {
             </button>
           </div>
 
-          {/* Loading State */}
           {isLoading && (
             <div className="flex justify-center items-center py-12">
               <div className="text-center">
@@ -175,15 +188,13 @@ export default function BrowseBoats() {
             </div>
           )}
 
-          {/* Error State */}
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 mb-6">
               <p className="font-medium">Error loading boats</p>
-              <p className="text-sm">{error instanceof Error ? error.message : 'Something went wrong'}</p>
+              <p className="text-sm">{error instanceof Error ? error.message : "Something went wrong"}</p>
             </div>
           )}
 
-          {/* Boat List */}
           {!isLoading && boats.length > 0 && (
             <div className="flex flex-col gap-5">
               {boats.map((boat) => (
@@ -216,7 +227,6 @@ export default function BrowseBoats() {
             </div>
           )}
 
-          {/* Empty State */}
           {!isLoading && boats.length === 0 && (
             <div className="text-center py-12">
               <p className="text-gray-600">No boats found matching your criteria</p>
@@ -226,7 +236,6 @@ export default function BrowseBoats() {
         </div>
       </main>
 
-      {/* Boat Detail Modal */}
       {selectedBoat && (
         <BoatDetailModal
           boat={selectedBoat}

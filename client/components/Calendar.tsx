@@ -21,15 +21,9 @@ export default function Calendar({
 }: CalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
-  /* ===============================
-     TODAY (normalized for comparisons)
-  =============================== */
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  /* ===============================
-     FETCH AVAILABILITY
-  =============================== */
   const { data: calendarData } = useQuery({
     queryKey: [
       "calendar-availability",
@@ -46,33 +40,32 @@ export default function Calendar({
 
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-  /* ===============================
-     DATE HELPERS
-  =============================== */
   const getDaysInMonth = (date: Date) =>
     new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 
   const getFirstDayOfMonth = (date: Date) =>
     new Date(date.getFullYear(), date.getMonth(), 1).getDay();
 
+  const formatLocalDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
   const daysInMonth = getDaysInMonth(currentMonth);
   const firstDay = getFirstDayOfMonth(currentMonth);
 
-  /* ===============================
-     BUILD CALENDAR GRID
-  =============================== */
+  const availabilityDays = calendarData?.data?.days || [];
+
   const calendarDays: (CalendarDay | null)[] = [];
 
-  // empty slots before first day
   for (let i = 0; i < firstDay; i++) {
     calendarDays.push(null);
   }
 
-  // month days
   for (let day = 1; day <= daysInMonth; day++) {
-    const calendarDay = calendarData?.days?.find(
-      (d: any) => d.day === day
-    );
+    const calendarDay = availabilityDays.find((d: any) => d.day === day);
 
     const fullDate = new Date(
       currentMonth.getFullYear(),
@@ -91,24 +84,18 @@ export default function Calendar({
     });
   }
 
-  /* ===============================
-     MONTH NAVIGATION
-  =============================== */
   const handlePrevMonth = () => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1)
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1)
     );
   };
 
   const handleNextMonth = () => {
     setCurrentMonth(
-      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1)
+      new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1)
     );
   };
 
-  /* ===============================
-     DATE SELECTION
-  =============================== */
   const handleDateSelect = (day: number) => {
     const selected = new Date(
       currentMonth.getFullYear(),
@@ -116,15 +103,24 @@ export default function Calendar({
       day
     );
 
-    const dateString = selected.toISOString().split("T")[0];
+    const dateString = formatLocalDate(selected);
 
     onDateChange(selectedDate === dateString ? null : dateString);
   };
 
   const getSelectedDayOfMonth = () => {
     if (!selectedDate) return null;
-    const date = new Date(selectedDate);
-    return date.getDate();
+
+    const [year, month, day] = selectedDate.split("-").map(Number);
+
+    if (
+      year === currentMonth.getFullYear() &&
+      month === currentMonth.getMonth() + 1
+    ) {
+      return day;
+    }
+
+    return null;
   };
 
   const selectedDayOfMonth = getSelectedDayOfMonth();
@@ -134,16 +130,10 @@ export default function Calendar({
     year: "numeric",
   });
 
-  /* ===============================
-     RENDER
-  =============================== */
   return (
     <div className="bg-white rounded-md p-5 border-b border-gray-500/25">
-      {/* HEADER */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-gray-900 font-semibold text-base">
-          {monthName}
-        </h3>
+        <h3 className="text-gray-900 font-semibold text-base">{monthName}</h3>
 
         <div className="flex items-center gap-2">
           <button
@@ -162,17 +152,13 @@ export default function Calendar({
         </div>
       </div>
 
-      {/* WEEKDAYS */}
       <div className="grid grid-cols-7 gap-1">
         {daysOfWeek.map((day) => (
           <div key={day} className="text-center pb-2">
-            <span className="text-gray-500 text-xs font-semibold">
-              {day}
-            </span>
+            <span className="text-gray-500 text-xs font-semibold">{day}</span>
           </div>
         ))}
 
-        {/* DAYS GRID */}
         {calendarDays.map((dayData, index) => (
           <div
             key={index}
@@ -208,7 +194,6 @@ export default function Calendar({
         ))}
       </div>
 
-      {/* LEGEND */}
       <div className="flex items-center gap-4 mt-4 pt-4 border-t border-gray-500/25">
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 bg-green-badge rounded-sm"></div>

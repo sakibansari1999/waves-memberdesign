@@ -10,7 +10,6 @@ import { AuthProvider } from "./context/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import Header from "./components/Header";
 import RootPage from "./pages/RootPage";
-import Welcome from "./pages/Welcome";
 import Dashboard from "./pages/Dashboard";
 import BrowseBoats from "./pages/BrowseBoats";
 import BookingFlow from "./pages/BookingFlow";
@@ -35,7 +34,6 @@ const App = () => (
           <Header />
           <Routes>
             {/* Public Routes */}
-            <Route path="/welcome" element={<Welcome />} />
             <Route path="/login" element={<Login />} />
 
             {/* Root Route - Conditional: Welcome if not logged in, Search if logged in */}
