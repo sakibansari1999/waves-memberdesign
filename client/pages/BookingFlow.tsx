@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { format } from "date-fns";
 import {
   ArrowLeft,
   MapPin,
@@ -7,6 +8,7 @@ import {
   Info,
   CheckCircle2,
   AlertCircle,
+  Calendar as CalendarIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -18,7 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-const API_BASE_URL =import.meta.env.VITE_API_BASE_URL
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 interface Boat {
   id: number;
   boat_name?: string;
@@ -104,10 +115,19 @@ interface BookingData {
   notes: string;
 }
 
+function toLocalDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function toApiDate(date: Date) {
+  return format(date, "yyyy-MM-dd");
+}
+
 async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("accessToken");
 
-  const response = await fetch(API_BASE_URL+url, {
+  const response = await fetch(API_BASE_URL + url, {
     ...options,
     headers: {
       Accept: "application/json",
@@ -194,7 +214,8 @@ export default function BookingFlow() {
     notes: "",
   });
   const [createdReservationId, setCreatedReservationId] = useState<number | null>(null);
-  const [createdReservation, setCreatedReservation] = useState<ReservationResponse["data"] | null>(null);
+  const [createdReservation, setCreatedReservation] =
+    useState<ReservationResponse["data"] | null>(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -310,10 +331,31 @@ export default function BookingFlow() {
 
   const selectedDestinationName =
     bookingData.destination
-      ? destinations.data?.data?.find((d) => d.id === bookingData.destination)?.name || "Not specified"
+      ? destinations.data?.data?.find((d) => d.id === bookingData.destination)?.name ||
+        "Not specified"
       : "Not specified";
 
   const dueTimeFormatted = availableTimes.data?.meta?.due_time_formatted || "--:--";
+
+  const selectableDateSet = useMemo(() => {
+    const set = new Set<string>();
+
+    availableDates.data?.data
+      ?.filter((dateOption) => {
+        const dateObj = toLocalDate(dateOption.date);
+        dateObj.setHours(0, 0, 0, 0);
+        return dateOption.available && dateObj >= today && dateObj <= maxDate;
+      })
+      .forEach((dateOption) => {
+        set.add(dateOption.date);
+      });
+
+    return set;
+  }, [availableDates.data, today, maxDate]);
+
+  const selectedBookingDate = bookingData.date
+    ? toLocalDate(bookingData.date)
+    : undefined;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -365,9 +407,7 @@ export default function BookingFlow() {
                   className="w-20 h-20 rounded-lg object-cover"
                 />
                 <div className="flex-1">
-                  <h2 className="text-gray-900 text-lg font-semibold mb-1">
-                    {boatName}
-                  </h2>
+                  <h2 className="text-gray-900 text-lg font-semibold mb-1">{boatName}</h2>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-gray-900 text-sm">{boat.type}</span>
                     {boat.category ? (
@@ -393,9 +433,7 @@ export default function BookingFlow() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-900 text-sm">
-                    {boat.guests ?? 0} Guests
-                  </span>
+                  <span className="text-gray-900 text-sm">{boat.guests ?? 0} Guests</span>
                 </div>
               </div>
 
@@ -423,42 +461,48 @@ export default function BookingFlow() {
                       ) : availableDates.error ? (
                         <div className="text-red-600 text-sm">Failed to load dates</div>
                       ) : (
-                        <Select
-                          value={bookingData.date}
-                          onValueChange={(value) => handleInputChange("date", value)}
-                        >
-                          <SelectTrigger id="date" className="bg-white border-gray-300">
-                            <SelectValue placeholder="Select Date" />
-                          </SelectTrigger>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              id="date"
+                              className={cn(
+                                "w-full justify-start text-left font-normal h-10 bg-white border-gray-300 hover:bg-white",
+                                !bookingData.date && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {bookingData.date
+                                ? format(selectedBookingDate as Date, "MM/dd/yyyy")
+                                : "MM/DD/YYYY"}
+                            </Button>
+                          </PopoverTrigger>
 
-                          <SelectContent>
-                            {availableDates.data?.data
-                              ?.filter((dateOption) => {
-                                const dateObj = new Date(dateOption.date + "T00:00:00");
-                                dateObj.setHours(0, 0, 0, 0);
-                                return dateObj >= today && dateObj <= maxDate;
-                              })
-                              .map((dateOption) => {
-                                const dateObj = new Date(dateOption.date + "T00:00:00");
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={selectedBookingDate}
+                              onSelect={(date) => {
+                                if (!date) return;
 
-                                return (
-                                  <SelectItem
-                                    key={dateOption.date}
-                                    value={dateOption.date}
-                                    disabled={!dateOption.available}
-                                  >
-                                    {dateObj.toLocaleDateString("en-US", {
-                                      weekday: "long",
-                                      month: "long",
-                                      day: "numeric",
-                                      year: "numeric",
-                                    })}
-                                    {!dateOption.available ? " (Unavailable)" : ""}
-                                  </SelectItem>
-                                );
-                              })}
-                          </SelectContent>
-                        </Select>
+                                const apiDate = toApiDate(date);
+                                if (!selectableDateSet.has(apiDate)) return;
+
+                                handleInputChange("date", apiDate);
+                              }}
+                              disabled={(date) => {
+                                const dateOnly = new Date(date);
+                                dateOnly.setHours(0, 0, 0, 0);
+
+                                if (dateOnly < today || dateOnly > maxDate) return true;
+
+                                return !selectableDateSet.has(toApiDate(dateOnly));
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
                       )}
                     </div>
 
@@ -602,9 +646,7 @@ export default function BookingFlow() {
                   className="w-20 h-20 rounded-lg object-cover"
                 />
                 <div className="flex-1">
-                  <h2 className="text-gray-900 text-lg font-semibold mb-1">
-                    {boatName}
-                  </h2>
+                  <h2 className="text-gray-900 text-lg font-semibold mb-1">{boatName}</h2>
                   <div className="flex items-center gap-1.5 mb-1">
                     <span className="text-gray-900 text-sm">{boat.type}</span>
                     {boat.category ? (
@@ -643,12 +685,9 @@ export default function BookingFlow() {
                   <div className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">Date</span>
                     <span className="text-gray-900 text-sm font-medium">
-                      {new Date(bookingData.date + "T00:00:00").toLocaleDateString("en-US", {
-                        weekday: "long",
-                        month: "long",
-                        day: "numeric",
-                        year: "numeric",
-                      })}
+                      {bookingData.date
+                        ? format(toLocalDate(bookingData.date), "MM/dd/yyyy")
+                        : "—"}
                     </span>
                   </div>
 
@@ -664,8 +703,8 @@ export default function BookingFlow() {
                   <div className="flex justify-between py-2 border-b border-gray-100">
                     <span className="text-gray-500 text-sm">Time</span>
                     <span className="text-gray-900 text-sm font-medium">
-                      {availableTimes.data?.data?.find((t) => t.time === bookingData.startTime)?.label ||
-                        bookingData.startTime}{" "}
+                      {availableTimes.data?.data?.find((t) => t.time === bookingData.startTime)
+                        ?.label || bookingData.startTime}{" "}
                       - {dueTimeFormatted}
                     </span>
                   </div>
@@ -786,20 +825,19 @@ export default function BookingFlow() {
                     <div className="space-y-4 text-left">
                       <div className="flex justify-between py-2">
                         <span className="text-gray-500 text-sm">Boat</span>
-                        <span className="text-gray-900 text-sm font-semibold">
-                          {boatName}
-                        </span>
+                        <span className="text-gray-900 text-sm font-semibold">{boatName}</span>
                       </div>
                       <div className="flex justify-between py-2">
                         <span className="text-gray-500 text-sm">Date</span>
                         <span className="text-gray-900 text-sm font-semibold">
-                          {new Date(
-                            (createdReservation.start_date || bookingData.date) + "T00:00:00"
-                          ).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                            year: "numeric",
-                          })}
+                          {createdReservation.start_date || bookingData.date
+                            ? format(
+                                toLocalDate(
+                                  createdReservation.start_date || bookingData.date
+                                ),
+                                "MM/dd/yyyy"
+                              )
+                            : "—"}
                         </span>
                       </div>
                       <div className="flex justify-between py-2">
@@ -807,8 +845,7 @@ export default function BookingFlow() {
                         <span className="text-gray-900 text-sm font-semibold">
                           {createdReservation.start_time_formatted ||
                             createdReservation.start_time}{" "}
-                          -{" "}
-                          {createdReservation.due_time_formatted || dueTimeFormatted}
+                          - {createdReservation.due_time_formatted || dueTimeFormatted}
                         </span>
                       </div>
                       <div className="flex justify-between py-2">
@@ -820,7 +857,8 @@ export default function BookingFlow() {
                       <div className="flex justify-between py-2">
                         <span className="text-gray-500 text-sm">Booking Type</span>
                         <span className="text-gray-900 text-sm font-semibold">
-                          {createdReservation.booking_type_label || createdReservation.booking_type}
+                          {createdReservation.booking_type_label ||
+                            createdReservation.booking_type}
                         </span>
                       </div>
                       <div className="flex justify-between py-2">

@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { MapPin, Calendar, Sun, Users } from "lucide-react";
+import { MapPin, Calendar as CalendarIcon, Sun, Users } from "lucide-react";
+import { format } from "date-fns";
+
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -9,15 +11,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useBoatLocations } from "@/hooks/useBoatFilters";
-import { generateAvailableDates, formatDateForDisplay } from "@/utils/dateHelper";
+import { cn } from "@/lib/utils";
+
+function toLocalDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function toApiDate(date: Date) {
+  return format(date, "yyyy-MM-dd");
+}
 
 export default function Search() {
   const navigate = useNavigate();
   const { data: locationsData, isLoading: locationsLoading } = useBoatLocations();
 
-  const availableDates = useMemo(() => generateAvailableDates(30), []);
   const locations = locationsData?.data || [];
+
+  const today = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  const maxDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() + 30);
+    return d;
+  }, []);
 
   const [searchParams, setSearchParams] = useState({
     location: "",
@@ -25,6 +54,8 @@ export default function Search() {
     slot: "",
     passengers: "",
   });
+
+  const selectedDate = searchParams.date ? toLocalDate(searchParams.date) : undefined;
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -39,6 +70,10 @@ export default function Search() {
 
     if (searchParams.slot && searchParams.slot !== "any") {
       params.append("slot", searchParams.slot);
+    }
+
+    if (searchParams.passengers && searchParams.passengers !== "any") {
+      params.append("passengers", searchParams.passengers);
     }
 
     navigate(`/browse?${params.toString()}`);
@@ -68,7 +103,6 @@ export default function Search() {
 
           <div className="max-w-[960px] mx-auto bg-white rounded-2xl shadow-2xl p-6 md:p-8">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              
               {/* Location */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-gray-900 text-sm font-medium">
@@ -99,29 +133,46 @@ export default function Search() {
                 </Select>
               </div>
 
-              {/* Date (Start Date) */}
+              {/* Start Date */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-gray-900 text-sm font-medium">
-                  <Calendar className="w-4 h-4" />
+                  <CalendarIcon className="w-4 h-4" />
                   Start Date
                 </label>
-                <Select
-                  value={searchParams.date}
-                  onValueChange={(value) =>
-                    setSearchParams({ ...searchParams, date: value })
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableDates.map((date) => (
-                      <SelectItem key={date} value={date}>
-                        {formatDateForDisplay(date)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal h-10 border-input bg-background hover:bg-background",
+                        !searchParams.date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {searchParams.date
+                        ? format(selectedDate as Date, "MM/dd/yyyy")
+                        : "MM/DD/YYYY"}
+                    </Button>
+                  </PopoverTrigger>
+
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={selectedDate}
+                      onSelect={(date) => {
+                        if (!date) return;
+                        setSearchParams({
+                          ...searchParams,
+                          date: toApiDate(date),
+                        });
+                      }}
+                      disabled={(date) => date < today || date > maxDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
 
               {/* Slot */}
@@ -172,7 +223,6 @@ export default function Search() {
                   </SelectContent>
                 </Select>
               </div>
-
             </div>
 
             <Button
