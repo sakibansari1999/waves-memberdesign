@@ -1,14 +1,14 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { format } from "date-fns";
 import {
-  ArrowLeft,
   MapPin,
   Users,
   Info,
   CheckCircle2,
   AlertCircle,
   Calendar as CalendarIcon,
+  Clock3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -38,6 +38,7 @@ interface Boat {
   category?: string;
   location?: string;
   guests?: number;
+  capacity?: number;
   images?: string[];
   image?: string;
   includedWithMembership?: boolean;
@@ -50,6 +51,23 @@ interface AvailableDatesResponse {
     dayOfWeek: string;
     available: boolean;
     availableSlots: number;
+    booking_types?: {
+      AM?: {
+        available: boolean;
+        waitlist: boolean;
+        label: string;
+      };
+      PM?: {
+        available: boolean;
+        waitlist: boolean;
+        label: string;
+      };
+      FULL_DAY?: {
+        available: boolean;
+        waitlist: boolean;
+        label: string;
+      };
+    };
   }>;
 }
 
@@ -62,8 +80,10 @@ interface AvailableTimesResponse {
   }>;
   meta?: {
     booking_type: "AM" | "PM" | "FULL_DAY";
+    booking_type_label?: string;
     due_time: string;
     due_time_formatted: string;
+    is_waitlist?: boolean;
   };
 }
 
@@ -83,6 +103,7 @@ interface BookingMetaResponse {
       value: "AM" | "PM" | "FULL_DAY";
       label: string;
     }>;
+    member_phone?: string | null;
   };
 }
 
@@ -104,6 +125,9 @@ interface ReservationResponse {
     location?: string;
     destination?: string | null;
     status?: string;
+    member_phone?: string | null;
+    total_passengers?: number | null;
+    children_details?: string | null;
   };
 }
 
@@ -113,7 +137,12 @@ interface BookingData {
   startTime: string;
   destination: string;
   notes: string;
+  memberPhone: string;
+  totalPassengers: string;
+  childrenDetails: string;
 }
+
+type BookingTypeValue = "AM" | "PM" | "FULL_DAY";
 
 function toLocalDate(value: string) {
   const [year, month, day] = value.split("-").map(Number);
@@ -122,6 +151,10 @@ function toLocalDate(value: string) {
 
 function toApiDate(date: Date) {
   return format(date, "yyyy-MM-dd");
+}
+
+function formatPhoneCapacityText(capacity: number) {
+  return `Capacity is ${capacity}`;
 }
 
 async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
@@ -155,7 +188,7 @@ function useAsyncData<T>(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  useMemo(() => {
+  useEffect(() => {
     let cancelled = false;
 
     if (!enabled) {
@@ -190,7 +223,26 @@ function useAsyncData<T>(
 export default function BookingFlow() {
   const navigate = useNavigate();
   const location = useLocation();
-  const boat = location.state?.boat as Boat | undefined;
+  const bookingState = location.state as
+    | {
+      boat?: Boat;
+      selectedDate?: string;
+      slot?: "AM" | "PM" | "FULL_DAY" | "full-day" | "";
+    }
+    | undefined;
+
+  const boat = bookingState?.boat;
+  const preselectedDate = bookingState?.selectedDate || "";
+  const preselectedSlotRaw = bookingState?.slot || "";
+
+  const preselectedSlot: "AM" | "PM" | "FULL_DAY" | "" =
+    preselectedSlotRaw === "full-day"
+      ? "FULL_DAY"
+      : preselectedSlotRaw === "AM" ||
+        preselectedSlotRaw === "PM" ||
+        preselectedSlotRaw === "FULL_DAY"
+        ? preselectedSlotRaw
+        : "";
 
   const today = useMemo(() => {
     const d = new Date();
@@ -207,11 +259,14 @@ export default function BookingFlow() {
 
   const [step, setStep] = useState(1);
   const [bookingData, setBookingData] = useState<BookingData>({
-    date: "",
-    bookingType: "",
+    date: preselectedDate,
+    bookingType: preselectedSlot,
     startTime: "",
     destination: "",
     notes: "",
+    memberPhone: "",
+    totalPassengers: "",
+    childrenDetails: "",
   });
   const [createdReservationId, setCreatedReservationId] = useState<number | null>(null);
   const [createdReservation, setCreatedReservation] =
@@ -227,6 +282,7 @@ export default function BookingFlow() {
   const boatName = boat.boat_name || boat.name || "Boat";
   const boatImage = boat.images?.[0] || boat.image || "";
   const boatLocation = boat.location || "Location unavailable";
+  const boatCapacity = Number(boat.guests ?? boat.capacity ?? 0);
 
   const bookingMeta = useAsyncData<BookingMetaResponse>(
     true,
@@ -255,6 +311,16 @@ export default function BookingFlow() {
     () => apiFetch("/api/reservations/destinations")
   );
 
+  useEffect(() => {
+    const phone = bookingMeta.data?.data?.member_phone || "";
+    if (!phone) return;
+
+    setBookingData((prev) => {
+      if (prev.memberPhone) return prev;
+      return { ...prev, memberPhone: phone };
+    });
+  }, [bookingMeta.data?.data?.member_phone]);
+
   const fetchCreatedReservation = async (reservationId: number) => {
     const data = await apiFetch<ReservationResponse>(`/api/reservations/${reservationId}`);
     setCreatedReservation(data.data);
@@ -267,6 +333,7 @@ export default function BookingFlow() {
       const updated = { ...prev, [field]: value };
 
       if (field === "date") {
+        updated.bookingType = "";
         updated.startTime = "";
       }
 
@@ -278,12 +345,134 @@ export default function BookingFlow() {
     });
   };
 
+  const selectedDateMeta = useMemo(() => {
+    return (
+      availableDates.data?.data?.find((item) => item.date === bookingData.date) || null
+    );
+  }, [availableDates.data, bookingData.date]);
+
+  const bookingTypeCards = useMemo(() => {
+    const meta = selectedDateMeta?.booking_types;
+
+    return [
+      {
+        value: "AM" as BookingTypeValue,
+        label: meta?.AM?.label || "AM",
+        isWaitlist: meta?.AM?.waitlist || false,
+        isDisabled: !bookingData.date,
+      },
+      {
+        value: "PM" as BookingTypeValue,
+        label: meta?.PM?.label || "PM",
+        isWaitlist: meta?.PM?.waitlist || false,
+        isDisabled: !bookingData.date,
+      },
+      {
+        value: "FULL_DAY" as BookingTypeValue,
+        label: meta?.FULL_DAY?.label || "Full Day",
+        isWaitlist: meta?.FULL_DAY?.waitlist || false,
+        isDisabled: !bookingData.date,
+      },
+    ];
+  }, [selectedDateMeta, bookingData.date]);
+
+  const selectedDestinationName =
+    bookingData.destination
+      ? destinations.data?.data?.find((d) => d.id === bookingData.destination)?.name ||
+      "Not specified"
+      : "Not specified";
+
+  const dueTimeFormatted = availableTimes.data?.meta?.due_time_formatted || "--:--";
+  const isWaitlistSelected = !!availableTimes.data?.meta?.is_waitlist;
+  const selectedBookingTypeLabel =
+    availableTimes.data?.meta?.booking_type_label ||
+    bookingMeta.data?.data?.booking_types?.find(
+      (t) => t.value === bookingData.bookingType
+    )?.label ||
+    bookingData.bookingType ||
+    "—";
+
+  const selectableDateSet = useMemo(() => {
+    const set = new Set<string>();
+
+    availableDates.data?.data
+      ?.filter((dateOption) => {
+        const dateObj = toLocalDate(dateOption.date);
+        dateObj.setHours(0, 0, 0, 0);
+        return dateOption.available && dateObj >= today && dateObj <= maxDate;
+      })
+      .forEach((dateOption) => {
+        set.add(dateOption.date);
+      });
+
+    return set;
+  }, [availableDates.data, today, maxDate]);
+
+useEffect(() => {
+  if (!bookingData.date) return;
+  if (availableDates.isLoading) return;
+  if (!availableDates.data?.data) return;
+  if (availableDates.data.data.length === 0) return;
+  if (selectableDateSet.size === 0) return;
+
+  if (!selectableDateSet.has(bookingData.date)) {
+    setBookingData((prev) => ({
+      ...prev,
+      date: "",
+      bookingType: "",
+      startTime: "",
+    }));
+  }
+}, [
+  bookingData.date,
+  selectableDateSet,
+  availableDates.isLoading,
+  availableDates.data,
+]);
+
+  const selectedBookingDate = bookingData.date
+    ? toLocalDate(bookingData.date)
+    : undefined;
+
+  const startTimeLabel =
+    availableTimes.data?.data?.find((t) => t.time === bookingData.startTime)?.label ||
+    bookingData.startTime ||
+    "—";
+
+  const validateStepOne = () => {
+    if (!bookingData.date || !bookingData.bookingType || !bookingData.startTime) {
+      setBookingError("Please fill in all required booking fields.");
+      return false;
+    }
+
+    if (!bookingData.memberPhone.trim()) {
+      setBookingError("Please enter contact phone number.");
+      return false;
+    }
+
+    if (!bookingData.totalPassengers.trim()) {
+      setBookingError("Please enter total number of passengers.");
+      return false;
+    }
+
+    const passengerCount = Number(bookingData.totalPassengers);
+
+    if (!Number.isInteger(passengerCount) || passengerCount < 1) {
+      setBookingError("Total number of passengers must be at least 1.");
+      return false;
+    }
+
+    if (boatCapacity > 0 && passengerCount > boatCapacity) {
+      setBookingError(`Total passengers exceed boat capacity of ${boatCapacity}.`);
+      return false;
+    }
+
+    return true;
+  };
+
   const handleContinue = async () => {
     if (step === 1) {
-      if (!bookingData.date || !bookingData.bookingType || !bookingData.startTime) {
-        setBookingError("Please fill in all required fields");
-        return;
-      }
+      if (!validateStepOne()) return;
 
       setStep(2);
       window.scrollTo(0, 0);
@@ -304,6 +493,9 @@ export default function BookingFlow() {
             start_time: bookingData.startTime,
             destination: bookingData.destination || undefined,
             customer_notes: bookingData.notes || undefined,
+            member_phone: bookingData.memberPhone.trim(),
+            total_passengers: Number(bookingData.totalPassengers),
+            children_details: bookingData.childrenDetails || undefined,
           }),
         });
 
@@ -320,236 +512,210 @@ export default function BookingFlow() {
     }
   };
 
-  const handleBack = () => {
-    if (step > 1) {
-      setStep(step - 1);
-      window.scrollTo(0, 0);
-    } else {
-      navigate(-1);
-    }
-  };
-
-  const selectedDestinationName =
-    bookingData.destination
-      ? destinations.data?.data?.find((d) => d.id === bookingData.destination)?.name ||
-        "Not specified"
-      : "Not specified";
-
-  const dueTimeFormatted = availableTimes.data?.meta?.due_time_formatted || "--:--";
-
-  const selectableDateSet = useMemo(() => {
-    const set = new Set<string>();
-
-    availableDates.data?.data
-      ?.filter((dateOption) => {
-        const dateObj = toLocalDate(dateOption.date);
-        dateObj.setHours(0, 0, 0, 0);
-        return dateOption.available && dateObj >= today && dateObj <= maxDate;
-      })
-      .forEach((dateOption) => {
-        set.add(dateOption.date);
-      });
-
-    return set;
-  }, [availableDates.data, today, maxDate]);
-
-  const selectedBookingDate = bookingData.date
-    ? toLocalDate(bookingData.date)
-    : undefined;
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-10 py-6">
-          <button
-            onClick={handleBack}
-            className="flex items-center gap-2 text-gray-900 hover:text-gray-600 transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span className="font-medium">
-              {step === 3 ? "Booking Summary" : "Booking Details"}
-            </span>
-          </button>
-        </div>
-      </div>
-
-      <div className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-10 py-8">
+    <div className="min-h-screen bg-[#F5F6FA]">
+      <div className="max-w-[900px] mx-auto px-4 md:px-5 py-6">
         {step !== 3 && (
-          <div className="flex items-center justify-center gap-3 mb-8">
+          <div className="flex items-center justify-center gap-3 mb-6">
             <div
-              className={`flex items-center justify-center w-10 h-10 rounded-full ${
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center text-base font-semibold border transition-all",
                 step === 1
-                  ? "bg-blue-primary text-white"
-                  : "bg-white text-gray-900 border border-gray-300"
-              } font-semibold`}
+                  ? "bg-blue-primary text-white border-blue-primary"
+                  : "bg-white text-gray-500 border-gray-300"
+              )}
             >
               1
             </div>
             <div
-              className={`flex items-center justify-center w-10 h-10 rounded-full ${
+              className={cn(
+                "w-10 h-10 rounded-full flex items-center justify-center text-base font-semibold border transition-all",
                 step === 2
-                  ? "bg-blue-primary text-white"
-                  : "bg-white text-gray-900 border border-gray-300"
-              } font-semibold`}
+                  ? "bg-blue-primary text-white border-blue-primary"
+                  : "bg-white text-gray-500 border-gray-300"
+              )}
             >
               2
             </div>
           </div>
         )}
 
-        <div className="max-w-[680px] mx-auto">
+        <div className="max-w-[860px] mx-auto">
           {step === 1 && (
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-4 p-6 border-b border-gray-200">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="flex items-start gap-3 px-5 md:px-6 py-5 border-b border-gray-200">
                 <img
                   src={boatImage}
                   alt={boatName}
-                  className="w-20 h-20 rounded-lg object-cover"
+                  className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                 />
-                <div className="flex-1">
-                  <h2 className="text-gray-900 text-lg font-semibold mb-1">{boatName}</h2>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-gray-900 text-sm">{boat.type}</span>
-                    {boat.category ? (
-                      <>
-                        <span className="w-1 h-1 bg-gray-900 rounded-full"></span>
-                        <span className="text-gray-900 text-sm">{boat.category}</span>
-                      </>
-                    ) : null}
+
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-[#171A22] text-[18px] md:text-[20px] font-bold mb-1">
+                    {boatName}
+                  </h2>
+
+                  <div className="text-gray-500 text-[14px]">
+                    {[boat.type, boat.category].filter(Boolean).join(" • ") || "Boat"}
                   </div>
-                  <div className="text-gray-500 text-xs">{boat.id}</div>
                 </div>
+
                 {boat.includedWithMembership && (
-                  <div className="px-2 py-1 rounded-lg border border-blue-primary/64 bg-blue-primary/11">
-                    <span className="text-blue-primary text-xs">Included</span>
+                  <div className="px-3 py-1.5 rounded-lg border border-blue-primary/20 bg-blue-primary/5">
+                    <span className="text-blue-primary text-[14px] font-medium">
+                      Included
+                    </span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-6 px-6 py-4 border-b border-gray-200">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 md:px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-900 text-sm">{boatLocation}</span>
+                  <span className="text-gray-600 text-[15px]">{boatLocation}</span>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-900 text-sm">{boat.guests ?? 0} Guests</span>
+                  <span className="text-gray-600 text-[15px]">
+                    {boatCapacity || 0} Guests
+                  </span>
                 </div>
               </div>
 
-              <div className="p-6">
-                <h3 className="text-gray-900 text-xl font-semibold mb-6">
+              <div className="px-5 md:px-6 py-5">
+                <h3 className="text-[#171A22] text-[20px] font-semibold mb-6">
                   Select Date & Time
                 </h3>
 
-                <div className="space-y-6">
-                  {bookingError && (
-                    <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-red-700 text-sm">{bookingError}</p>
-                    </div>
-                  )}
+                {bookingError && (
+                  <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg mb-5">
+                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <p className="text-red-700 text-sm">{bookingError}</p>
+                  </div>
+                )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="date" className="text-gray-900 text-sm">
-                        Date *
-                      </Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="date" className="text-[#171A22] text-[14px] font-semibold">
+                      Date *
+                    </Label>
 
-                      {availableDates.isLoading ? (
-                        <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
-                      ) : availableDates.error ? (
-                        <div className="text-red-600 text-sm">Failed to load dates</div>
-                      ) : (
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              id="date"
-                              className={cn(
-                                "w-full justify-start text-left font-normal h-10 bg-white border-gray-300 hover:bg-white",
-                                !bookingData.date && "text-muted-foreground"
-                              )}
-                            >
-                              <CalendarIcon className="mr-2 h-4 w-4" />
-                              {bookingData.date
-                                ? format(selectedBookingDate as Date, "MM/dd/yyyy")
-                                : "MM/DD/YYYY"}
-                            </Button>
-                          </PopoverTrigger>
+                    {availableDates.isLoading ? (
+                      <div className="h-11 bg-gray-100 rounded-lg animate-pulse" />
+                    ) : availableDates.error ? (
+                      <div className="text-red-600 text-sm">Failed to load dates</div>
+                    ) : (
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            id="date"
+                            className={cn(
+                              "w-full h-11 justify-start text-left font-normal bg-white border-gray-300 rounded-lg hover:bg-white text-[14px]",
+                              !bookingData.date && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {bookingData.date
+                              ? format(selectedBookingDate as Date, "MM/dd/yyyy")
+                              : "MM/DD/YYYY"}
+                          </Button>
+                        </PopoverTrigger>
 
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                              mode="single"
-                              selected={selectedBookingDate}
-                              onSelect={(date) => {
-                                if (!date) return;
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={selectedBookingDate}
+                            onSelect={(date) => {
+                              if (!date) return;
 
-                                const apiDate = toApiDate(date);
-                                if (!selectableDateSet.has(apiDate)) return;
+                              const apiDate = toApiDate(date);
+                              if (!selectableDateSet.has(apiDate)) return;
 
-                                handleInputChange("date", apiDate);
-                              }}
-                              disabled={(date) => {
-                                const dateOnly = new Date(date);
-                                dateOnly.setHours(0, 0, 0, 0);
+                              handleInputChange("date", apiDate);
+                            }}
+                            disabled={(date) => {
+                              const dateOnly = new Date(date);
+                              dateOnly.setHours(0, 0, 0, 0);
 
-                                if (dateOnly < today || dateOnly > maxDate) return true;
+                              if (dateOnly < today || dateOnly > maxDate) return true;
 
-                                return !selectableDateSet.has(toApiDate(dateOnly));
-                              }}
-                              initialFocus
-                            />
-                          </PopoverContent>
-                        </Popover>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-gray-900 text-sm">Booking Type *</Label>
-                      {bookingMeta.isLoading ? (
-                        <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
-                      ) : (
-                        <Select
-                          value={bookingData.bookingType}
-                          onValueChange={(value: "AM" | "PM" | "FULL_DAY") =>
-                            handleInputChange("bookingType", value)
-                          }
-                        >
-                          <SelectTrigger className="bg-white border-gray-300">
-                            <SelectValue placeholder="Select booking type" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {bookingMeta.data?.data?.booking_types?.map((type) => (
-                              <SelectItem key={type.value} value={type.value}>
-                                {type.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      )}
-                    </div>
+                              return !selectableDateSet.has(toApiDate(dateOnly));
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label className="text-[#171A22] text-[14px] font-semibold mb-3 block">
+                      Booking Type *
+                    </Label>
+
+                    <div className="space-y-2 mb-2">
+                      {bookingTypeCards.map((item) => {
+                        const isSelected = bookingData.bookingType === item.value;
+
+                        return (
+                          <button
+                            key={item.value}
+                            type="button"
+                            disabled={item.isDisabled}
+                            onClick={() => handleInputChange("bookingType", item.value)}
+                            className={cn(
+                              "w-full min-h-[48px] rounded-lg border px-4 flex items-center justify-between text-left transition-all text-[14px]",
+                              item.isDisabled
+                                ? "bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed"
+                                : isSelected
+                                  ? "bg-blue-primary text-white border-blue-primary"
+                                  : item.isWaitlist
+                                    ? "bg-[#F3F4F8] text-gray-600 border-gray-200"
+                                    : "bg-white text-[#171A22] border-gray-200 hover:border-blue-primary/40"
+                            )}
+                          >
+                            <span className="font-medium">{item.label}</span>
+
+                            {isSelected ? (
+                              <CheckCircle2 className="w-4 h-4" />
+                            ) : item.isWaitlist ? (
+                              <Clock3 className="w-4 h-4 text-gray-500" />
+                            ) : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="flex items-start gap-2 text-gray-500 mb-5">
+                      <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                      <span className="text-[13px]">
+                        Due back At or before {dueTimeFormatted === "--:--" ? "—" : dueTimeFormatted}
+                      </span>
+                    </div>
+
                     <div className="space-y-2">
-                      <Label htmlFor="startTime" className="text-gray-900 text-sm">
+                      <Label htmlFor="startTime" className="text-[#171A22] text-[14px] font-semibold">
                         Start Time *
                       </Label>
 
                       {!bookingData.date || !bookingData.bookingType ? (
-                        <div className="h-10 bg-gray-100 rounded-md flex items-center px-3 text-gray-500 text-sm">
+                        <div className="h-11 bg-gray-100 rounded-lg flex items-center px-3 text-gray-500 text-sm border border-gray-200">
                           Select date and booking type first
                         </div>
                       ) : availableTimes.isLoading ? (
-                        <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
+                        <div className="h-11 bg-gray-100 rounded-lg animate-pulse" />
                       ) : (
                         <Select
                           value={bookingData.startTime}
                           onValueChange={(value) => handleInputChange("startTime", value)}
                         >
-                          <SelectTrigger id="startTime" className="bg-white border-gray-300">
+                          <SelectTrigger
+                            id="startTime"
+                            className="h-11 bg-white border-gray-300 rounded-lg text-[14px]"
+                          >
                             <SelectValue placeholder="Select Time" />
                           </SelectTrigger>
                           <SelectContent>
@@ -560,52 +726,78 @@ export default function BookingFlow() {
                                 disabled={!timeSlot.available}
                               >
                                 {timeSlot.label}
-                                {!timeSlot.available ? " (Booked)" : ""}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
                       )}
                     </div>
+                  </div>
+                </div>
+
+                <div className="space-y-5">
+                  <div className="space-y-2">
+                    <Label htmlFor="memberPhone" className="text-[#171A22] text-[14px] font-semibold">
+                      Contact Phone Number *
+                    </Label>
+                    <p className="text-gray-500 text-[12px]">
+                      Please enter your phone number if different from the one in our system
+                    </p>
+                    <input
+                      id="memberPhone"
+                      type="text"
+                      value={bookingData.memberPhone}
+                      onChange={(e) => handleInputChange("memberPhone", e.target.value)}
+                      className="w-full h-11 rounded-lg border border-gray-300 bg-white px-3 text-[14px] outline-none focus:border-blue-primary"
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="totalPassengers"
+                        className="text-[#171A22] text-[14px] font-semibold"
+                      >
+                        Total Number of Passengers *
+                      </Label>
+                      <p className="text-gray-500 text-[12px]">
+                        {formatPhoneCapacityText(boatCapacity)}
+                      </p>
+                      <input
+                        id="totalPassengers"
+                        type="number"
+                        min={1}
+                        value={bookingData.totalPassengers}
+                        onChange={(e) => handleInputChange("totalPassengers", e.target.value)}
+                        className="w-full h-11 rounded-lg border border-gray-300 bg-white px-3 text-[14px] outline-none focus:border-blue-primary"
+                        placeholder="4"
+                      />
+                    </div>
 
                     <div className="space-y-2">
-                      <Label className="text-gray-900 text-sm">End Time (Auto)</Label>
-                      <div className="h-10 bg-gray-50 border border-gray-300 rounded-md px-3 flex items-center text-gray-700 text-sm">
-                        {dueTimeFormatted}
-                      </div>
+                      <Label
+                        htmlFor="childrenDetails"
+                        className="text-[#171A22] text-[14px] font-semibold"
+                      >
+                        Ages/Weights of Children
+                      </Label>
+                      <p className="text-gray-500 text-[12px]">
+                        if applicable (eg. 7/45lbs, 3/35lbs, etc)
+                      </p>
+                      <input
+                        id="childrenDetails"
+                        type="text"
+                        value={bookingData.childrenDetails}
+                        onChange={(e) => handleInputChange("childrenDetails", e.target.value)}
+                        className="w-full h-11 rounded-lg border border-gray-300 bg-white px-3 text-[14px] outline-none focus:border-blue-primary"
+                        placeholder="Age/Weight"
+                      />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="destination" className="text-gray-900 text-sm">
-                      Destination (Optional)
-                    </Label>
-                    {destinations.isLoading ? (
-                      <div className="h-10 bg-gray-100 rounded-md animate-pulse" />
-                    ) : (
-                      <Select
-                        value={bookingData.destination || "__none__"}
-                        onValueChange={(value) =>
-                          handleInputChange("destination", value === "__none__" ? "" : value)
-                        }
-                      >
-                        <SelectTrigger id="destination" className="bg-white border-gray-300">
-                          <SelectValue placeholder="Where would you like to go" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__none__">Not specified</SelectItem>
-                          {destinations.data?.data?.map((dest) => (
-                            <SelectItem key={dest.id} value={dest.id}>
-                              {dest.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="notes" className="text-gray-900 text-sm">
+                    <Label htmlFor="notes" className="text-[#171A22] text-[14px] font-semibold">
                       Notes (Optional)
                     </Label>
                     <Textarea
@@ -613,20 +805,19 @@ export default function BookingFlow() {
                       placeholder="Any special requests..."
                       value={bookingData.notes}
                       onChange={(e) => handleInputChange("notes", e.target.value)}
-                      className="bg-white border-gray-300 min-h-[100px] resize-none"
+                      className="bg-white border-gray-300 min-h-[90px] rounded-lg text-[14px] px-3 py-2"
                     />
                   </div>
 
                   <Button
+                    type="button"
                     onClick={handleContinue}
                     disabled={
-                      !bookingData.date ||
-                      !bookingData.bookingType ||
-                      !bookingData.startTime ||
                       availableDates.isLoading ||
-                      availableTimes.isLoading
+                      availableTimes.isLoading ||
+                      bookingMeta.isLoading
                     }
-                    className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"
+                    className="w-full h-11 rounded-lg bg-blue-primary text-white text-[15px] font-medium"
                   >
                     {availableDates.isLoading || availableTimes.isLoading
                       ? "Loading..."
@@ -638,99 +829,148 @@ export default function BookingFlow() {
           )}
 
           {step === 2 && (
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm">
-              <div className="flex items-center gap-4 p-6 border-b border-gray-200">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="flex items-start gap-3 px-5 md:px-6 py-5 border-b border-gray-200">
                 <img
                   src={boatImage}
                   alt={boatName}
-                  className="w-20 h-20 rounded-lg object-cover"
+                  className="w-16 h-16 rounded-xl object-cover flex-shrink-0"
                 />
-                <div className="flex-1">
-                  <h2 className="text-gray-900 text-lg font-semibold mb-1">{boatName}</h2>
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="text-gray-900 text-sm">{boat.type}</span>
-                    {boat.category ? (
-                      <>
-                        <span className="w-1 h-1 bg-gray-900 rounded-full"></span>
-                        <span className="text-gray-900 text-sm">{boat.category}</span>
-                      </>
-                    ) : null}
+
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-[#171A22] text-[18px] md:text-[20px] font-bold mb-1">
+                    {boatName}
+                  </h2>
+
+                  <div className="text-gray-500 text-[14px]">
+                    {[boat.type, boat.category].filter(Boolean).join(" • ") || "Boat"}
                   </div>
-                  <div className="text-gray-500 text-xs">{boat.id}</div>
                 </div>
+
                 {boat.includedWithMembership && (
-                  <div className="px-2 py-1 rounded-lg border border-blue-primary/64 bg-blue-primary/11">
-                    <span className="text-blue-primary text-xs">Included</span>
+                  <div className="px-3 py-1.5 rounded-lg border border-blue-primary/20 bg-blue-primary/5">
+                    <span className="text-blue-primary text-[14px] font-medium">
+                      Included
+                    </span>
                   </div>
                 )}
               </div>
 
-              <div className="flex items-center gap-6 px-6 py-4 border-b border-gray-200">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 md:px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-900 text-sm">{boatLocation}</span>
+                  <span className="text-gray-600 text-[15px]">{boatLocation}</span>
                 </div>
+
                 <div className="flex items-center gap-2">
                   <Users className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-900 text-sm">{boat.guests ?? 0} Guests</span>
+                  <span className="text-gray-600 text-[15px]">
+                    {boatCapacity || 0} Guests
+                  </span>
                 </div>
               </div>
 
-              <div className="p-6">
-                <h3 className="text-gray-900 text-xl font-semibold mb-6">
-                  Review your booking
+              <div className="px-5 md:px-6 py-5">
+                <h3 className="text-[#171A22] text-[20px] font-semibold mb-6">
+                  Review Your Booking
                 </h3>
 
-                <div className="space-y-4 mb-6">
-                  <div className="flex justify-between py-2 border-b border-gray-100">
+                {isWaitlistSelected && (
+                  <div className="flex items-start gap-3 p-3 bg-[#F3F4F8] border border-gray-200 rounded-lg mb-5">
+                    <Clock3 className="w-5 h-5 text-gray-500 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-[#171A22] text-sm font-semibold mb-1">
+                        {selectedBookingTypeLabel}
+                      </p>
+                      <p className="text-gray-600 text-sm">
+                        This slot type is already booked. Your booking will be submitted to
+                        the waitlist and saved as pending.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-3 mb-5">
+                  <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
                     <span className="text-gray-500 text-sm">Date</span>
-                    <span className="text-gray-900 text-sm font-medium">
+                    <span className="text-[#171A22] text-sm font-semibold text-right">
                       {bookingData.date
                         ? format(toLocalDate(bookingData.date), "MM/dd/yyyy")
                         : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-2 border-b border-gray-100">
+                  <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
                     <span className="text-gray-500 text-sm">Booking Type</span>
-                    <span className="text-gray-900 text-sm font-medium">
-                      {bookingMeta.data?.data?.booking_types?.find(
-                        (t) => t.value === bookingData.bookingType
-                      )?.label || bookingData.bookingType}
+                    <span className="text-[#171A22] text-sm font-semibold text-right">
+                      {selectedBookingTypeLabel}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-2 border-b border-gray-100">
+                  <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
                     <span className="text-gray-500 text-sm">Time</span>
-                    <span className="text-gray-900 text-sm font-medium">
-                      {availableTimes.data?.data?.find((t) => t.time === bookingData.startTime)
-                        ?.label || bookingData.startTime}{" "}
-                      - {dueTimeFormatted}
+                    <span className="text-[#171A22] text-sm font-semibold text-right">
+                      {startTimeLabel} - {dueTimeFormatted}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-2 border-b border-gray-100">
+                  <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
                     <span className="text-gray-500 text-sm">Duration</span>
-                    <span className="text-gray-900 text-sm font-medium">
+                    <span className="text-[#171A22] text-sm font-semibold text-right">
                       {bookingData.bookingType === "AM"
                         ? "4 Hours"
                         : bookingData.bookingType === "PM"
-                        ? "5 Hours"
-                        : bookingData.bookingType === "FULL_DAY"
-                        ? "9 Hours"
-                        : "—"}
+                          ? "5 Hours"
+                          : bookingData.bookingType === "FULL_DAY"
+                            ? "9 Hours"
+                            : "—"}
                     </span>
                   </div>
 
-                  <div className="flex justify-between py-2 border-b border-gray-100">
+                  <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
                     <span className="text-gray-500 text-sm">Destination</span>
-                    <span className="text-gray-900 text-sm font-medium">
+                    <span className="text-[#171A22] text-sm font-semibold text-right">
                       {selectedDestinationName}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
+                    <span className="text-gray-500 text-sm">Contact Phone</span>
+                    <span className="text-[#171A22] text-sm font-semibold text-right">
+                      {bookingData.memberPhone || "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
+                    <span className="text-gray-500 text-sm">Passengers</span>
+                    <span className="text-[#171A22] text-sm font-semibold text-right">
+                      {bookingData.totalPassengers || "—"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
+                    <span className="text-gray-500 text-sm">Children</span>
+                    <span className="text-[#171A22] text-sm font-semibold text-right">
+                      {bookingData.childrenDetails || "Not specified"}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between py-2 gap-4">
+                    <span className="text-gray-500 text-sm">Status</span>
+                    <span
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs font-medium border",
+                        isWaitlistSelected
+                          ? "bg-yellow-100 border-yellow-300 text-yellow-800"
+                          : "bg-green-100 border-green-300 text-green-800"
+                      )}
+                    >
+                      {isWaitlistSelected ? "Pending Waitlist" : "Confirmed"}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3 p-4 bg-blue-primary/5 rounded-lg border border-blue-primary/20 mb-4">
+                <div className="flex items-start gap-3 p-3 bg-blue-primary/5 rounded-lg border border-blue-primary/20 mb-4">
                   <svg
                     className="w-5 h-5 text-blue-primary flex-shrink-0 mt-0.5"
                     viewBox="0 0 20 20"
@@ -745,7 +985,7 @@ export default function BookingFlow() {
                     />
                   </svg>
                   <div className="flex-1">
-                    <h4 className="text-gray-900 text-sm font-semibold mb-1">
+                    <h4 className="text-[#171A22] text-sm font-semibold mb-1">
                       Gold Membership
                     </h4>
                     <p className="text-gray-600 text-xs">Included with Membership</p>
@@ -755,10 +995,10 @@ export default function BookingFlow() {
                   </span>
                 </div>
 
-                <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg mb-6">
+                <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg mb-5">
                   <Info className="w-5 h-5 text-blue-primary flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <h4 className="text-gray-900 text-sm font-semibold mb-1">
+                    <h4 className="text-[#171A22] text-sm font-semibold mb-1">
                       Post-Trip Billing
                     </h4>
                     <p className="text-gray-600 text-xs">
@@ -769,19 +1009,35 @@ export default function BookingFlow() {
                 </div>
 
                 {bookingError && (
-                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg mb-4">
+                  <div className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg mb-4">
                     <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                     <p className="text-red-700 text-sm">{bookingError}</p>
                   </div>
                 )}
 
-                <Button
-                  onClick={handleContinue}
-                  disabled={isSubmitting}
-                  className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"
-                >
-                  {isSubmitting ? "Creating Booking..." : "Confirm Booking"}
-                </Button>
+                <div className="flex gap-3 flex-col sm:flex-row">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setStep(1)}
+                    className="sm:w-[160px] h-11 rounded-lg border-gray-300 text-[14px]"
+                  >
+                    Back
+                  </Button>
+
+                  <Button
+                    type="button"
+                    onClick={handleContinue}
+                    disabled={isSubmitting}
+                    className="flex-1 h-11 rounded-lg bg-blue-primary text-white text-[15px] font-medium"
+                  >
+                    {isSubmitting
+                      ? "Creating Booking..."
+                      : isWaitlistSelected
+                        ? "Join Waitlist"
+                        : "Confirm Booking"}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -797,88 +1053,148 @@ export default function BookingFlow() {
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-center mb-6">
+                  <div className="flex items-center justify-center mb-5">
                     <div className="relative">
-                      <div className="w-28 h-28 rounded-full bg-green-500/10 flex items-center justify-center">
-                        <div className="w-14 h-14 rounded-full bg-green-500 flex items-center justify-center">
+                      <div
+                        className={cn(
+                          "w-24 h-24 rounded-full flex items-center justify-center",
+                          createdReservation.status === "pending"
+                            ? "bg-yellow-500/10"
+                            : "bg-green-500/10"
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            "w-12 h-12 rounded-full flex items-center justify-center",
+                            createdReservation.status === "pending"
+                              ? "bg-yellow-500"
+                              : "bg-green-500"
+                          )}
+                        >
                           <CheckCircle2 className="w-5 h-5 text-white" />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="mb-8">
-                    <h2 className="text-gray-900 text-2xl font-bold mb-4">
-                      Booking Confirmed!
+                  <div className="mb-6">
+                    <h2 className="text-[#171A22] text-2xl font-bold mb-3">
+                      {createdReservation.status === "pending"
+                        ? "Waitlist Booking Submitted!"
+                        : "Booking Confirmed!"}
                     </h2>
-                    <p className="text-gray-500 text-base">Your adventure awaits</p>
+                    <p className="text-gray-500 text-base">
+                      {createdReservation.status === "pending"
+                        ? "Your request has been added to the waitlist"
+                        : "Your adventure awaits"}
+                    </p>
                   </div>
 
-                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mb-6">
-                    <div className="text-center mb-6 pb-6 border-b border-gray-100">
-                      <h3 className="text-gray-500 text-xl font-medium mb-2">Booking ID</h3>
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5">
+                    <div className="text-center mb-5 pb-5 border-b border-gray-100">
+                      <h3 className="text-gray-500 text-lg font-medium mb-2">Booking ID</h3>
                       <p className="text-blue-primary text-2xl font-bold">
                         {createdReservation.booking_code}
                       </p>
                     </div>
 
-                    <div className="space-y-4 text-left">
-                      <div className="flex justify-between py-2">
+                    <div className="space-y-3 text-left">
+                      <div className="flex justify-between py-2 gap-4">
                         <span className="text-gray-500 text-sm">Boat</span>
-                        <span className="text-gray-900 text-sm font-semibold">{boatName}</span>
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
+                          {boatName}
+                        </span>
                       </div>
-                      <div className="flex justify-between py-2">
+
+                      <div className="flex justify-between py-2 gap-4">
                         <span className="text-gray-500 text-sm">Date</span>
-                        <span className="text-gray-900 text-sm font-semibold">
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.start_date || bookingData.date
                             ? format(
-                                toLocalDate(
-                                  createdReservation.start_date || bookingData.date
-                                ),
-                                "MM/dd/yyyy"
-                              )
+                              toLocalDate(
+                                createdReservation.start_date || bookingData.date
+                              ),
+                              "MM/dd/yyyy"
+                            )
                             : "—"}
                         </span>
                       </div>
-                      <div className="flex justify-between py-2">
+
+                      <div className="flex justify-between py-2 gap-4">
                         <span className="text-gray-500 text-sm">Time</span>
-                        <span className="text-gray-900 text-sm font-semibold">
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.start_time_formatted ||
                             createdReservation.start_time}{" "}
                           - {createdReservation.due_time_formatted || dueTimeFormatted}
                         </span>
                       </div>
-                      <div className="flex justify-between py-2">
+
+                      <div className="flex justify-between py-2 gap-4">
                         <span className="text-gray-500 text-sm">Location</span>
-                        <span className="text-gray-900 text-sm font-semibold">
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.location || boatLocation}
                         </span>
                       </div>
-                      <div className="flex justify-between py-2">
+
+                      <div className="flex justify-between py-2 gap-4">
                         <span className="text-gray-500 text-sm">Booking Type</span>
-                        <span className="text-gray-900 text-sm font-semibold">
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.booking_type_label ||
                             createdReservation.booking_type}
                         </span>
                       </div>
-                      <div className="flex justify-between py-2">
+
+                      <div className="flex justify-between py-2 gap-4">
                         <span className="text-gray-500 text-sm">Duration</span>
-                        <span className="text-gray-900 text-sm font-semibold">
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.duration_label || "—"}
                         </span>
                       </div>
-                      <div className="flex justify-between py-2">
+
+                      <div className="flex justify-between py-2 gap-4">
+                        <span className="text-gray-500 text-sm">Contact Phone</span>
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
+                          {createdReservation.member_phone || bookingData.memberPhone || "—"}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between py-2 gap-4">
+                        <span className="text-gray-500 text-sm">Passengers</span>
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
+                          {createdReservation.total_passengers ||
+                            bookingData.totalPassengers ||
+                            "—"}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between py-2 gap-4">
+                        <span className="text-gray-500 text-sm">Children</span>
+                        <span className="text-[#171A22] text-sm font-semibold text-right">
+                          {createdReservation.children_details ||
+                            bookingData.childrenDetails ||
+                            "Not specified"}
+                        </span>
+                      </div>
+
+                      <div className="flex justify-between py-2 gap-4">
                         <span className="text-gray-500 text-sm">Status</span>
-                        <span className="px-2 py-1 rounded-full bg-yellow-100 border border-yellow-300 text-yellow-800 text-xs font-medium">
+                        <span
+                          className={cn(
+                            "px-2 py-1 rounded-full text-xs font-medium border",
+                            createdReservation.status === "pending"
+                              ? "bg-yellow-100 border-yellow-300 text-yellow-800"
+                              : "bg-green-100 border-green-300 text-green-800"
+                          )}
+                        >
                           {createdReservation.status
                             ? createdReservation.status.charAt(0).toUpperCase() +
-                              createdReservation.status.slice(1)
+                            createdReservation.status.slice(1)
                             : "Pending"}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-3 p-4 bg-blue-50 rounded-lg mt-6">
+                    <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg mt-5">
                       <Info className="w-5 h-5 text-blue-primary flex-shrink-0 mt-0.5" />
                       <p className="text-gray-600 text-xs text-left">
                         No payment is required now. Fuel and usage charges will be billed
@@ -890,14 +1206,14 @@ export default function BookingFlow() {
                   <div className="space-y-3">
                     <Button
                       onClick={() => navigate("/my-trips")}
-                      className="w-full bg-blue-primary hover:bg-blue-primary/90 text-white py-6 text-base font-semibold"
+                      className="w-full h-11 rounded-lg bg-blue-primary text-white text-[15px] font-medium"
                     >
                       View booking details
                     </Button>
                     <Button
                       onClick={() => navigate("/browse")}
                       variant="outline"
-                      className="w-full border-gray-300 text-gray-900 hover:bg-gray-50 py-6 text-base font-semibold"
+                      className="w-full h-11 rounded-lg border-gray-300 text-gray-900 hover:bg-gray-50 text-[15px] font-medium"
                     >
                       Book another boat
                     </Button>

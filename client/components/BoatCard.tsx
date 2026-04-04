@@ -15,6 +15,7 @@ interface BoatCardProps {
   badge?: "most-booked" | "unavailable" | null;
   includedWithMembership?: boolean;
   onSelectBoat?: () => void;
+  onViewBoat?: () => void;
 }
 
 export default function BoatCard({
@@ -32,6 +33,7 @@ export default function BoatCard({
   badge,
   includedWithMembership,
   onSelectBoat,
+  onViewBoat,
 }: BoatCardProps) {
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col lg:flex-row gap-5 p-5 relative">
@@ -53,7 +55,7 @@ export default function BoatCard({
 
       {/* Content */}
       <div className="flex-1 flex flex-col">
-        <div className="flex items-start justify-between mb-2">
+        <div className="flex items-start justify-between mb-2 gap-3 flex-wrap">
           <div>
             <h3 className="text-gray-900 text-xl font-semibold">{name}</h3>
             <div className="flex items-center gap-1 mt-1">
@@ -63,6 +65,7 @@ export default function BoatCard({
             </div>
             {/* <div className="text-gray-500 text-xs mt-1">{id}</div> */}
           </div>
+
           {pricePerHour && (
             <div className="text-right">
               <div className="text-blue-primary text-2xl font-bold">
@@ -71,6 +74,7 @@ export default function BoatCard({
               </div>
             </div>
           )}
+
           {includedWithMembership && (
             <div className="px-2 py-1 rounded-lg border border-blue-primary/64 bg-blue-primary/11">
               <span className="text-blue-primary text-xs font-normal">
@@ -110,8 +114,15 @@ export default function BoatCard({
           ))}
         </div>
 
-        <div className="flex gap-5 mt-auto">
-        
+        <div className="flex flex-col sm:flex-row gap-3 mt-auto">
+          <button
+            onClick={onViewBoat}
+            className="flex-1 py-3 px-4 border border-blue-primary text-blue-primary font-semibold text-base rounded-md hover:bg-blue-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={badge === "unavailable"}
+          >
+            View Boat
+          </button>
+
           <button
             onClick={onSelectBoat}
             className="flex-1 py-3 px-4 bg-blue-primary text-white font-semibold text-base rounded-md hover:bg-blue-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"

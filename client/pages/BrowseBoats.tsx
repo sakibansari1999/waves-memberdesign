@@ -1,6 +1,6 @@
 import { Search, ArrowUpDown, X } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import BoatCard from "@/components/BoatCard";
 import FiltersSidebar from "@/components/FiltersSidebar";
 import BoatDetailModal from "@/components/BoatDetailModal";
@@ -13,6 +13,8 @@ const MAX_LENGTH = 100;
 
 export default function BrowseBoats() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const [selectedBoat, setSelectedBoat] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -21,7 +23,10 @@ export default function BrowseBoats() {
   const [slot, setSlot] = useState<string | null>(null);
   const [locations, setLocations] = useState<string[]>([]);
   const [boatTypes, setBoatTypes] = useState<string[]>([]);
-  const [lengthRange, setLengthRange] = useState<[number, number]>([MIN_LENGTH, MAX_LENGTH]);
+  const [lengthRange, setLengthRange] = useState<[number, number]>([
+    MIN_LENGTH,
+    MAX_LENGTH,
+  ]);
   const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<string>("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -65,15 +70,35 @@ export default function BrowseBoats() {
       order: sortOrder,
       per_page: 12,
     }),
-    [searchQuery, selectedDate, slot, locations, boatTypes, lengthRange, selectedFeatures, sortBy, sortOrder]
+    [
+      searchQuery,
+      selectedDate,
+      slot,
+      locations,
+      boatTypes,
+      lengthRange,
+      selectedFeatures,
+      sortBy,
+      sortOrder,
+    ],
   );
 
   const { data: boatsResponse, isLoading, error } = useBoats(filters);
 
-  const handleSelectBoat = (boat: any) => {
+  const handleViewBoat = (boat: any) => {
     setSelectedBoat(boat);
     setIsModalOpen(true);
   };
+
+const handleDirectSelectBoat = (boat: any) => {
+  navigate("/booking", {
+    state: {
+      boat,
+      selectedDate,
+      slot,
+    },
+  });
+};
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -96,7 +121,6 @@ export default function BrowseBoats() {
     setSortOrder("desc");
     setHasSearchParams(false);
 
-    // Clear URL query params
     setSearchParams({});
   };
 
@@ -138,7 +162,9 @@ export default function BrowseBoats() {
                 {formatDateDisplay(selectedDate)}
               </h1>
               <p className="text-gray-500 text-sm">
-                {isLoading ? "Loading..." : `${boats.length} boat${boats.length !== 1 ? "s" : ""} found`}
+                {isLoading
+                  ? "Loading..."
+                  : `${boats.length} boat${boats.length !== 1 ? "s" : ""} found`}
               </p>
               {slot && (
                 <p className="text-sm text-gray-500 mt-1">
@@ -170,6 +196,7 @@ export default function BrowseBoats() {
                 className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-md text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-primary"
               />
             </div>
+
             <button
               onClick={toggleSort}
               className="flex items-center gap-2 px-4 py-2 text-gray-900 font-medium text-base hover:bg-gray-100 rounded-md transition-colors"
@@ -191,7 +218,11 @@ export default function BrowseBoats() {
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-md p-4 text-red-700 mb-6">
               <p className="font-medium">Error loading boats</p>
-              <p className="text-sm">{error instanceof Error ? error.message : "Something went wrong"}</p>
+              <p className="text-sm">
+                {error instanceof Error
+                  ? error.message
+                  : "Something went wrong"}
+              </p>
             </div>
           )}
 
@@ -203,25 +234,18 @@ export default function BrowseBoats() {
                   id={boat.id}
                   name={boat.boat_name}
                   type={boat.type}
+                  category={boat.category}
                   image={boat.image || ""}
-                  images={boat.images}
                   location={boat.location}
                   boatType={boat.boatType}
                   length={boat.length}
                   guests={boat.capacity}
-                  motor={boat.motor}
-                  fuelCapacity={boat.fuelCapacity}
-                  capacity={`${boat.capacity} passengers`}
                   features={boat.features}
-                  description={boat.description}
-                  notes={boat.notes}
-                  dockInstructions={boat.dockInstructions}
-                  fare={boat.fare}
-                  status={boat.status}
+                  pricePerHour={boat.fare}
                   badge={boat.badge}
                   includedWithMembership={boat.includedWithMembership}
-                  lastBooked={boat.lastBooked}
-                  onSelectBoat={() => handleSelectBoat(boat)}
+                  onViewBoat={() => handleViewBoat(boat)}
+                  onSelectBoat={() => handleDirectSelectBoat(boat)}
                 />
               ))}
             </div>
@@ -229,19 +253,25 @@ export default function BrowseBoats() {
 
           {!isLoading && boats.length === 0 && (
             <div className="text-center py-12">
-              <p className="text-gray-600">No boats found matching your criteria</p>
-              <p className="text-sm text-gray-500 mt-2">Try adjusting your filters</p>
+              <p className="text-gray-600">
+                No boats found matching your criteria
+              </p>
+              <p className="text-sm text-gray-500 mt-2">
+                Try adjusting your filters
+              </p>
             </div>
           )}
         </div>
       </main>
 
       {selectedBoat && (
-        <BoatDetailModal
-          boat={selectedBoat}
-          isOpen={isModalOpen}
-          onClose={handleCloseModal}
-        />
+       <BoatDetailModal
+  boat={selectedBoat}
+  isOpen={isModalOpen}
+  onClose={handleCloseModal}
+  selectedDate={selectedDate}
+  slot={slot}
+/>
       )}
     </div>
   );
