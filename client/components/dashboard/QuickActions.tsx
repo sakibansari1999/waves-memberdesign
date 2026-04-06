@@ -25,7 +25,7 @@ function QuickActionCard({ icon, label, to }: QuickActionProps) {
 export default function QuickActions() {
   const actions = [
     {
-      label: "Book a Boat",
+      label: "Reserve a Boat",
       to: "/browse",
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">

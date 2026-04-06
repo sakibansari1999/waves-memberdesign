@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
   { label: "Dashboard", href: "/dashboard" },
-  { label: "Book a Boat", href: "/browse" },
+  { label: "Reserve a Boat", href: "/browse" },
   { label: "My Trips", href: "/my-trips" },
   { label: "Billing", href: "/billing" },
 ];

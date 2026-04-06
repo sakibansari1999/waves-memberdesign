@@ -64,7 +64,7 @@ export default function ReservationCard({ reservation }: ReservationCardProps) {
     to="/browse"
     className="flex items-center gap-2 px-7 py-3.5 bg-[#3B63FF] hover:bg-blue-700 text-white font-semibold text-[15px] rounded-md transition-colors"
   >
-    Book a Boat
+    Reserve a Boat
     <svg
       width="16"
       height="16"

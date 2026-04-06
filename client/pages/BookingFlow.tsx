@@ -268,6 +268,14 @@ export default function BookingFlow() {
     totalPassengers: "",
     childrenDetails: "",
   });
+    const selectedBookingDate = bookingData.date
+    ? toLocalDate(bookingData.date)
+    : undefined;
+
+
+const [calendarMonth, setCalendarMonth] = useState<Date>(
+  selectedBookingDate ?? today
+);
   const [createdReservationId, setCreatedReservationId] = useState<number | null>(null);
   const [createdReservation, setCreatedReservation] =
     useState<ReservationResponse["data"] | null>(null);
@@ -320,7 +328,22 @@ export default function BookingFlow() {
       return { ...prev, memberPhone: phone };
     });
   }, [bookingMeta.data?.data?.member_phone]);
+useEffect(() => {
+  if (!bookingData.date) return;
 
+  const nextMonth = toLocalDate(bookingData.date);
+
+  setCalendarMonth((prev) => {
+    if (
+      prev.getFullYear() === nextMonth.getFullYear() &&
+      prev.getMonth() === nextMonth.getMonth()
+    ) {
+      return prev;
+    }
+
+    return nextMonth;
+  });
+}, [bookingData.date]);
   const fetchCreatedReservation = async (reservationId: number) => {
     const data = await apiFetch<ReservationResponse>(`/api/reservations/${reservationId}`);
     setCreatedReservation(data.data);
@@ -408,31 +431,8 @@ export default function BookingFlow() {
     return set;
   }, [availableDates.data, today, maxDate]);
 
-useEffect(() => {
-  if (!bookingData.date) return;
-  if (availableDates.isLoading) return;
-  if (!availableDates.data?.data) return;
-  if (availableDates.data.data.length === 0) return;
-  if (selectableDateSet.size === 0) return;
 
-  if (!selectableDateSet.has(bookingData.date)) {
-    setBookingData((prev) => ({
-      ...prev,
-      date: "",
-      bookingType: "",
-      startTime: "",
-    }));
-  }
-}, [
-  bookingData.date,
-  selectableDateSet,
-  availableDates.isLoading,
-  availableDates.data,
-]);
 
-  const selectedBookingDate = bookingData.date
-    ? toLocalDate(bookingData.date)
-    : undefined;
 
   const startTimeLabel =
     availableTimes.data?.data?.find((t) => t.time === bookingData.startTime)?.label ||
@@ -596,64 +596,47 @@ useEffect(() => {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="date" className="text-[#171A22] text-[14px] font-semibold">
-                      Date *
-                    </Label>
+  <div className="space-y-2">
+  <Label className="text-[#171A22] text-[14px] font-semibold">
+    Date *
+  </Label>
 
-                    {availableDates.isLoading ? (
-                      <div className="h-11 bg-gray-100 rounded-lg animate-pulse" />
-                    ) : availableDates.error ? (
-                      <div className="text-red-600 text-sm">Failed to load dates</div>
-                    ) : (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            id="date"
-                            className={cn(
-                              "w-full h-11 justify-start text-left font-normal bg-white border-gray-300 rounded-lg hover:bg-white text-[14px]",
-                              !bookingData.date && "text-muted-foreground"
-                            )}
-                          >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
-                            {bookingData.date
-                              ? format(selectedBookingDate as Date, "MM/dd/yyyy")
-                              : "MM/DD/YYYY"}
-                          </Button>
-                        </PopoverTrigger>
+  {availableDates.isLoading ? (
+    <div className="h-[320px] bg-gray-100 rounded-lg animate-pulse" />
+  ) : availableDates.error ? (
+    <div className="text-red-600 text-sm">Failed to load dates</div>
+  ) : (
+    <div className="rounded-lg border border-gray-300 bg-white p-2">
+     <Calendar
+  mode="single"
+  month={calendarMonth}
+  onMonthChange={setCalendarMonth}
+  selected={selectedBookingDate}
+  onSelect={(date) => {
+    if (!date) return;
 
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={selectedBookingDate}
-                            onSelect={(date) => {
-                              if (!date) return;
+    const normalizedDate = new Date(date);
+    normalizedDate.setHours(0, 0, 0, 0);
 
-                              const apiDate = toApiDate(date);
-                              if (!selectableDateSet.has(apiDate)) return;
+    const apiDate = toApiDate(normalizedDate);
+    handleInputChange("date", apiDate);
+  }}
+  className="w-full"
+  initialFocus
+/>
+    </div>
+  )}
 
-                              handleInputChange("date", apiDate);
-                            }}
-                            disabled={(date) => {
-                              const dateOnly = new Date(date);
-                              dateOnly.setHours(0, 0, 0, 0);
-
-                              if (dateOnly < today || dateOnly > maxDate) return true;
-
-                              return !selectableDateSet.has(toApiDate(dateOnly));
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                    )}
-                  </div>
+  {bookingData.date && (
+    <div className="text-[13px] text-gray-500">
+      Selected: {format(selectedBookingDate as Date, "MM/dd/yyyy")}
+    </div>
+  )}
+</div>
 
                   <div>
                     <Label className="text-[#171A22] text-[14px] font-semibold mb-3 block">
-                      Booking Type *
+                      Reservation Type *
                     </Label>
 
                     <div className="space-y-2 mb-2">
@@ -883,7 +866,7 @@ useEffect(() => {
                         {selectedBookingTypeLabel}
                       </p>
                       <p className="text-gray-600 text-sm">
-                        This slot type is already booked. Your booking will be submitted to
+                        This slot type is already reserved. Your booking will be submitted to
                         the waitlist and saved as pending.
                       </p>
                     </div>
@@ -901,7 +884,7 @@ useEffect(() => {
                   </div>
 
                   <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
-                    <span className="text-gray-500 text-sm">Booking Type</span>
+                    <span className="text-gray-500 text-sm">Reservation Type</span>
                     <span className="text-[#171A22] text-sm font-semibold text-right">
                       {selectedBookingTypeLabel}
                     </span>
@@ -1137,7 +1120,7 @@ useEffect(() => {
                       </div>
 
                       <div className="flex justify-between py-2 gap-4">
-                        <span className="text-gray-500 text-sm">Booking Type</span>
+                        <span className="text-gray-500 text-sm">Reservation Type</span>
                         <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.booking_type_label ||
                             createdReservation.booking_type}

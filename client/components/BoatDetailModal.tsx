@@ -85,7 +85,7 @@ export default function BoatDetailModal({
 
           {boat.badge === "most-booked" && (
             <div className="absolute top-5 left-4 px-2 py-1 rounded-lg bg-green-badge text-white text-xs">
-              Most Booked
+              Most Reserved
             </div>
           )}
 
@@ -214,7 +214,7 @@ export default function BoatDetailModal({
           {boat.lastBooked && (
             <div className="p-5 border border-yellow-600 bg-yellow-600/9 rounded-lg mb-6">
               <h3 className="text-gray-900 text-base font-medium mb-2">
-                Last Booked by You
+                Last Reserved by You
               </h3>
               <p className="text-gray-500 text-sm mb-4">
                 {boat.lastBooked

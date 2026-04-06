@@ -510,7 +510,7 @@ function ViewReservationModal({
             </div>
             <div className="rounded-lg border border-black/[0.08] p-4">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                Booking Type
+                Reservation Type
               </div>
               <div className="text-sm font-semibold text-gray-900">
                 {reservation.booking_type_label || "—"}
@@ -752,7 +752,7 @@ function EditReservationModal({
             </div>
 
             <div className="space-y-2">
-              <Label className="text-gray-900 text-sm">Booking Type *</Label>
+              <Label className="text-gray-900 text-sm">Reservation Type *</Label>
               <Select
                 value={form.booking_type}
                 onValueChange={(value: "AM" | "PM" | "FULL_DAY") =>
@@ -760,7 +760,7 @@ function EditReservationModal({
                 }
               >
                 <SelectTrigger className="bg-white border-gray-300">
-                  <SelectValue placeholder="Select booking type" />
+                  <SelectValue placeholder="Select reservation type" />
                 </SelectTrigger>
                 <SelectContent>
                   {bookingTypes.map((type) => (
@@ -793,7 +793,7 @@ function EditReservationModal({
                       disabled={!slot.available}
                     >
                       {slot.label}
-                      {!slot.available ? " (Booked)" : ""}
+                      {!slot.available ? " (Reserved)" : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1089,7 +1089,7 @@ export default function MyTrips() {
               className="flex items-center gap-2 px-4 py-2.5 rounded-md bg-[#3B63FF] hover:bg-blue-700 text-white text-sm font-semibold transition-colors self-start sm:self-auto"
             >
               <PlusIcon />
-              Book a Boat
+              Reserve a Boat
             </Link>
           </div>
         </div>
