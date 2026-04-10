@@ -240,7 +240,7 @@ export default function BoatCard({
               </defs>
             </svg>
 
-            <span className="text-[#637285] font-medium text-[14px]">
+            <span className="text-[#637285] font-medium text-[13px]">
               {boatType}
             </span>
           </div>
@@ -248,10 +248,10 @@ export default function BoatCard({
           <div className="text-[#0F1723] font-bold text-[20px]">•</div>
 
           <div className="flex items-center gap-2">
-            <span className="text-[#637285] font-medium text-[14px]">
+            <span className="text-[#637285] font-medium text-[13px]">
               Fuel Capacity
             </span>
-            <span className="text-[#0F1723] font-bold text-[14px]">
+            <span className="text-[#0F1723] font-semibold text-[13px]">
               180 gal
             </span>
           </div>
@@ -300,11 +300,11 @@ export default function BoatCard({
                   </clipPath>
                 </defs>
               </svg>
-              <span className="text-[#7A8798] font-semibold text-[13px]">
+              <span className="text-[#7A8798] font-medium text-[12px]">
                 Length
               </span>
             </div>
-            <span className="text-[#0F1723] font-bold text-[13px]">
+            <span className="text-[#0F1723] font-semibold text-[12px]">
               {length}
             </span>
           </div>
@@ -336,11 +336,11 @@ export default function BoatCard({
                 />
               </svg>
 
-              <span className="text-[#7A8798] font-semibold text-[13px]">
+              <span className="text-[#7A8798] font-medium text-[12px]">
                 Capacity
               </span>
             </div>
-            <span className="text-[#0F1723] font-bold text-[13px] whitespace-nowrap">
+            <span className="text-[#0F1723] font-semibold text-[12px] whitespace-nowrap">
               {guests} Guests / 750 lbs
             </span>
           </div>
@@ -364,11 +364,11 @@ export default function BoatCard({
                   stroke-linejoin="round"
                 />
               </svg>
-              <span className="text-[#7A8798] font-semibold text-[13px]">
+              <span className="text-[#7A8798] font-medium text-[12px]">
                 Motor
               </span>
             </div>
-            <span className="text-[#0F1723] font-bold text-[13px]">
+            <span className="text-[#0F1723] font-semibold text-[12px]">
               Twin Diesel
             </span>
           </div>
