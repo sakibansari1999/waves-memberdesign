@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import {
+  Info,
+} from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -12,7 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-const API_BASE_URL =import.meta.env.VITE_API_BASE_URL
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 // ── Types ───────────────────────────────────────────────────────────────────
 
 type Tab = "upcoming" | "history" | "cancelled";
@@ -131,7 +134,7 @@ interface EditFormState {
 async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
   const token = localStorage.getItem("accessToken");
 
-  const response = await fetch(API_BASE_URL+url, {
+  const response = await fetch(API_BASE_URL + url, {
     ...options,
     headers: {
       Accept: "application/json",
@@ -283,8 +286,8 @@ function getDefaultImage(item: ReservationItem) {
   return item.card_type === "waitlisted"
     ? "from-orange-100 to-orange-200"
     : item.card_type === "history"
-    ? "from-slate-200 to-slate-300"
-    : "from-blue-100 to-blue-200";
+      ? "from-slate-200 to-slate-300"
+      : "from-blue-100 to-blue-200";
 }
 
 // ── Sub-components ──────────────────────────────────────────────────────────
@@ -672,6 +675,7 @@ function EditReservationModal({
   ];
 
   const timeSlots = editMetaQuery.data?.data.time_slots || [];
+
   const dueTime = useMemo(() => {
     if (form.booking_type === "AM") return "12:00 PM";
     if (form.booking_type === "PM") return "05:00 PM";
@@ -694,7 +698,7 @@ function EditReservationModal({
     <ModalShell
       open={open}
       onClose={onClose}
-      title="Modify Booking"
+      title="Modify Reservation"
       subtitle={
         reservation?.boat.name
           ? `Update your reservation for ${reservation.boat.name}`
@@ -773,7 +777,7 @@ function EditReservationModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="w-full">
             <div className="space-y-2">
               <Label className="text-gray-900 text-sm">Start Time *</Label>
               <Select
@@ -800,15 +804,22 @@ function EditReservationModal({
               </Select>
             </div>
 
-            <div className="space-y-2">
+            <div className="flex items-start gap-2 text-gray-500 mt-2 pl-1">
+              <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span className="text-[13px]">
+                Due back At or before {dueTime}
+              </span>
+            </div>
+
+            {/* <div className="space-y-2">
               <Label className="text-gray-900 text-sm">End Time</Label>
               <div className="h-10 rounded-md border border-gray-300 bg-gray-50 px-3 flex items-center text-sm text-gray-700">
                 {dueTime}
               </div>
-            </div>
+            </div> */}
           </div>
 
-          <div className="space-y-2">
+          {/* <div className="space-y-2">
             <Label className="text-gray-900 text-sm">Destination</Label>
             <Select
               value={form.destination || "__none__"}
@@ -831,7 +842,7 @@ function EditReservationModal({
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </div> */}
 
           <div className="space-y-2">
             <Label className="text-gray-900 text-sm">Notes</Label>
@@ -957,7 +968,7 @@ function ReservationCard({
               onClick={() => onEdit(reservation)}
               className="px-4 py-2 text-sm font-medium text-gray-900 rounded-md border border-black/[0.08] bg-white hover:bg-gray-50 transition-colors"
             >
-              {isWaitlisted ? "Edit Request" : "Modify Booking"}
+              {isWaitlisted ? "Edit Request" : "Modify Reservation"}
             </button>
           ) : null}
 

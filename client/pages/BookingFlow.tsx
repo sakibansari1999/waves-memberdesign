@@ -672,7 +672,7 @@ useEffect(() => {
                       })}
                     </div>
 
-                    <div className="flex items-start gap-2 text-gray-500 mb-5">
+                    <div className="flex items-start gap-2 text-gray-500 mb-5 pl-1">
                       <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <span className="text-[13px]">
                         Due back At or before {dueTimeFormatted === "--:--" ? "—" : dueTimeFormatted}
@@ -1188,7 +1188,7 @@ useEffect(() => {
 
                   <div className="space-y-3">
                     <Button
-                      onClick={() => navigate("/my-trips")}
+                      onClick={() => navigate("/my-reservations")}
                       className="w-full h-11 rounded-lg bg-blue-primary text-white text-[15px] font-medium"
                     >
                       View booking details

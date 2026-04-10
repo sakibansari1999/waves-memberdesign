@@ -19,8 +19,9 @@ import Login from "./pages/Login";
 import Logout from "./pages/Logout";
 import Placeholder from "./pages/Placeholder";
 import Billing from "./pages/Billing";
-import MyTrips from "./pages/MyTrips";
+import MyTrips from "./pages/MyReservations";
 import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
@@ -98,7 +99,7 @@ const App = () => (
               }
             />
             <Route
-              path="/my-trips"
+              path="/my-reservations"
               element={
                 <ProtectedRoute>
                   <MyTrips />

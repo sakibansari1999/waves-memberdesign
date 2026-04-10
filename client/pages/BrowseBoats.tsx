@@ -156,7 +156,10 @@ const handleDirectSelectBoat = (boat: any) => {
         </div>
 
         <div className="flex-1">
-          <div className="mb-6 flex items-start justify-between">
+          <div className="mb-4 flex items-center justify-between gap-4">
+
+          
+          <div className="flex items-start justify-between">
             <div>
               <h1 className="text-gray-900 text-2xl font-semibold mb-1">
                 {formatDateDisplay(selectedDate)}
@@ -185,7 +188,7 @@ const handleDirectSelectBoat = (boat: any) => {
             )}
           </div>
 
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between">
             <div className="relative flex-1 max-w-[206px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input
@@ -193,7 +196,7 @@ const handleDirectSelectBoat = (boat: any) => {
                 placeholder="Search... Boats"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-gray-100 rounded-md text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-primary"
+                className="w-full pl-10 pr-4 py-2.5 bg-[#EEF2F8] rounded-xl text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-primary"
               />
             </div>
 
@@ -204,6 +207,7 @@ const handleDirectSelectBoat = (boat: any) => {
               <ArrowUpDown className="w-5 h-5" />
               <span>Sort</span>
             </button>
+          </div>
           </div>
 
           {isLoading && (

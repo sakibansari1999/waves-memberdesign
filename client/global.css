@@ -1,3 +1,7 @@
+@import "swiper/css";
+@import "swiper/css/navigation";
+@import "swiper/css/thumbs";
+
 /** @import must precede all other statements */
 @import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap");
@@ -117,5 +121,46 @@
   code {
     overflow-x: auto;
     white-space: pre;
+  }
+}
+
+.swiper-wrapper {
+  width: 300px !important;
+}
+
+.swiper__single__image .swiper-slide,
+.swiper__single__image .swiper {
+  height: 280px;
+}
+
+.swiper-button-next {
+  width: 36px;
+  height: 36px;
+  border-radius: 100px;
+  background: #ffffffeb;
+  right: 10px !important;
+}
+
+.swiper-button-prev {
+  width: 36px;
+  height: 36px;
+  border-radius: 100px;
+  background: #ffffffeb;
+  left: 10px !important;
+}
+
+.swiper-button-next svg,
+.swiper-button-prev svg {
+  width: 13px;
+  height: 13px;
+  color: #0f1723;
+}
+
+.swiper-button-prev,
+.swiper-button-next {
+  &.swiper-button-disabled {
+    opacity: 1;
+    cursor: pointer;
+    pointer-events: all;
   }
 }

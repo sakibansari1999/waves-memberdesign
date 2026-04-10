@@ -37,7 +37,7 @@ export default function QuickActions() {
     },
     {
       label: "Reservations",
-      to: "/my-trips",
+      to: "/my-reservations",
       icon: (
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
           <path d="M8 2V6M16 2V6" stroke="#111827" strokeWidth="2" strokeLinecap="round"/>
