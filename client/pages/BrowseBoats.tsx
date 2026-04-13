@@ -1,5 +1,5 @@
-import { Search, ArrowUpDown, X } from "lucide-react";
-import { useState, useMemo, useEffect } from "react";
+import { Search, ArrowUpDown, X, Check } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import BoatCard from "@/components/BoatCard";
 import FiltersSidebar from "@/components/FiltersSidebar";
@@ -31,6 +31,36 @@ export default function BrowseBoats() {
   const [sortBy, setSortBy] = useState<string>("created_at");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [hasSearchParams, setHasSearchParams] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [selected, setSelected] = useState("Recommended");
+
+  const dropdownRef = useRef(null);
+
+  const options = [
+    "Recommended",
+    "Boat Length: High to Low",
+    "Boat Length: Low to High",
+    "Capacity: High to Low",
+    "Capacity: Low to High",
+  ];
+
+  const toggleSortMenu = () => setIsOpen((prev) => !prev);
+
+  const handleSelect = (option) => {
+    setSelected(option);
+    setIsOpen(false);
+  };
+
+  // Close on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const urlLocation = searchParams.get("location");
@@ -90,15 +120,15 @@ export default function BrowseBoats() {
     setIsModalOpen(true);
   };
 
-const handleDirectSelectBoat = (boat: any) => {
-  navigate("/booking", {
-    state: {
-      boat,
-      selectedDate,
-      slot,
-    },
-  });
-};
+  const handleDirectSelectBoat = (boat: any) => {
+    navigate("/booking", {
+      state: {
+        boat,
+        selectedDate,
+        slot,
+      },
+    });
+  };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
@@ -157,57 +187,87 @@ const handleDirectSelectBoat = (boat: any) => {
 
         <div className="flex-1">
           <div className="mb-4 flex items-center justify-between gap-4">
-
-          
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-gray-900 text-2xl font-semibold mb-1">
-                {formatDateDisplay(selectedDate)}
-              </h1>
-              <p className="text-gray-500 text-sm">
-                {isLoading
-                  ? "Loading..."
-                  : `${boats.length} boat${boats.length !== 1 ? "s" : ""} found`}
-              </p>
-              {slot && (
-                <p className="text-sm text-gray-500 mt-1">
-                  Slot: {slot === "full-day" ? "Full Day" : slot}
+            <div className="flex items-start justify-between">
+              <div>
+                <h1 className="text-gray-900 text-2xl font-semibold mb-1">
+                  {formatDateDisplay(selectedDate)}
+                </h1>
+                <p className="text-gray-500 text-sm">
+                  {isLoading
+                    ? "Loading..."
+                    : `${boats.length} boat${boats.length !== 1 ? "s" : ""} found`}
                 </p>
+                {slot && (
+                  <p className="text-sm text-gray-500 mt-1">
+                    Slot: {slot === "full-day" ? "Full Day" : slot}
+                  </p>
+                )}
+              </div>
+
+              {hasSearchParams && (
+                <Button
+                  onClick={handleResetFilters}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <X className="w-4 h-4" />
+                  Reset Filters
+                </Button>
               )}
             </div>
 
-            {hasSearchParams && (
-              <Button
-                onClick={handleResetFilters}
-                variant="outline"
-                className="flex items-center gap-2"
-              >
-                <X className="w-4 h-4" />
-                Reset Filters
-              </Button>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div className="relative flex-1 max-w-[206px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-              <input
-                type="text"
-                placeholder="Search... Boats"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-[#EEF2F8] rounded-xl text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-primary"
-              />
-            </div>
-
-            <button
-              onClick={toggleSort}
-              className="flex items-center gap-2 px-4 py-2 text-gray-900 font-medium text-base hover:bg-gray-100 rounded-md transition-colors"
+            <div
+              ref={dropdownRef}
+              className="relative flex items-center justify-between"
             >
-              <ArrowUpDown className="w-5 h-5" />
-              <span>Sort</span>
-            </button>
-          </div>
+              {/* Search */}
+              <div className="relative flex-1 max-w-[206px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search... Boats"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2.5 bg-[#EEF2F8] rounded-xl text-sm"
+                />
+              </div>
+
+              {/* Button */}
+              <button
+                onClick={toggleSortMenu}
+                className="flex items-center gap-2 px-4 py-2 text-gray-900 font-medium text-base hover:bg-gray-100 rounded-md"
+              >
+                <ArrowUpDown className="w-5 h-5" />
+                <span>Sort</span>
+              </button>
+
+              {/* Dropdown */}
+              {isOpen && (
+                <div className="absolute right-0 top-14 w-[260px] bg-white rounded-2xl shadow-xl border border-gray-100 p-3 z-50">
+                  <p className="text-xs text-gray-400 font-semibold mb-2 px-2">
+                    SORT BY
+                  </p>
+
+                  <div className="space-y-1">
+                    {options.map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => handleSelect(option)}
+                        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition
+              ${
+                selected === option
+                  ? "bg-blue-50 text-[#3B63FF] font-medium"
+                  : "hover:bg-gray-100 text-gray-700"
+              }`}
+                      >
+                        {option}
+                        {selected === option && <Check className="w-4 h-4" />}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {isLoading && (
@@ -269,13 +329,13 @@ const handleDirectSelectBoat = (boat: any) => {
       </main>
 
       {selectedBoat && (
-       <BoatDetailModal
-  boat={selectedBoat}
-  isOpen={isModalOpen}
-  onClose={handleCloseModal}
-  selectedDate={selectedDate}
-  slot={slot}
-/>
+        <BoatDetailModal
+          boat={selectedBoat}
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          selectedDate={selectedDate}
+          slot={slot}
+        />
       )}
     </div>
   );

@@ -66,23 +66,6 @@ export default function BoatCard({
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col lg:flex-row gap-5 p-5 relative">
       {/* Image */}
-      {/* 
-        
-        <div className="relative w-[30%] h-[218px] flex-shrink-0 rounded-md overflow-hidden bg-gray-100">
-        {badge && (
-          <div
-          className={`absolute top-2 left-2 px-2 py-1 rounded-md text-xs font-medium ${badge === "most-booked"
-          ? "bg-green-badge text-white"
-          : "bg-red-badge text-white"
-        }`}
-        >
-        {badge === "most-booked" ? "Most Booked" : "Unavailable"}
-        </div>
-      )}
-      <img src={image} alt={name} className="w-full h-full object-cover" />
-      </div>
-      */}
-
       <div className="w-[30%] ">
         {/* MAIN SLIDER */}
         <div className="relative rounded-md overflow-hidden">
