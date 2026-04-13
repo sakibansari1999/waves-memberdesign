@@ -182,7 +182,7 @@ async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
 function useAsyncData<T>(
   enabled: boolean,
   key: string,
-  loader: () => Promise<T>
+  loader: () => Promise<T>,
 ) {
   const [data, setData] = useState<T | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -225,10 +225,10 @@ export default function BookingFlow() {
   const location = useLocation();
   const bookingState = location.state as
     | {
-      boat?: Boat;
-      selectedDate?: string;
-      slot?: "AM" | "PM" | "FULL_DAY" | "full-day" | "";
-    }
+        boat?: Boat;
+        selectedDate?: string;
+        slot?: "AM" | "PM" | "FULL_DAY" | "full-day" | "";
+      }
     | undefined;
 
   const boat = bookingState?.boat;
@@ -239,8 +239,8 @@ export default function BookingFlow() {
     preselectedSlotRaw === "full-day"
       ? "FULL_DAY"
       : preselectedSlotRaw === "AM" ||
-        preselectedSlotRaw === "PM" ||
-        preselectedSlotRaw === "FULL_DAY"
+          preselectedSlotRaw === "PM" ||
+          preselectedSlotRaw === "FULL_DAY"
         ? preselectedSlotRaw
         : "";
 
@@ -268,17 +268,19 @@ export default function BookingFlow() {
     totalPassengers: "",
     childrenDetails: "",
   });
-    const selectedBookingDate = bookingData.date
+  const selectedBookingDate = bookingData.date
     ? toLocalDate(bookingData.date)
     : undefined;
 
-
-const [calendarMonth, setCalendarMonth] = useState<Date>(
-  selectedBookingDate ?? today
-);
-  const [createdReservationId, setCreatedReservationId] = useState<number | null>(null);
-  const [createdReservation, setCreatedReservation] =
-    useState<ReservationResponse["data"] | null>(null);
+  const [calendarMonth, setCalendarMonth] = useState<Date>(
+    selectedBookingDate ?? today,
+  );
+  const [createdReservationId, setCreatedReservationId] = useState<
+    number | null
+  >(null);
+  const [createdReservation, setCreatedReservation] = useState<
+    ReservationResponse["data"] | null
+  >(null);
   const [bookingError, setBookingError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -295,13 +297,13 @@ const [calendarMonth, setCalendarMonth] = useState<Date>(
   const bookingMeta = useAsyncData<BookingMetaResponse>(
     true,
     "booking-meta",
-    () => apiFetch("/api/reservations/booking-meta")
+    () => apiFetch("/api/reservations/booking-meta"),
   );
 
   const availableDates = useAsyncData<AvailableDatesResponse>(
     !!boat.id,
     `available-dates-${boat.id}`,
-    () => apiFetch(`/api/reservations/available-dates?fleet_id=${boat.id}`)
+    () => apiFetch(`/api/reservations/available-dates?fleet_id=${boat.id}`),
   );
 
   const availableTimes = useAsyncData<AvailableTimesResponse>(
@@ -309,14 +311,14 @@ const [calendarMonth, setCalendarMonth] = useState<Date>(
     `available-times-${boat.id}-${bookingData.date}-${bookingData.bookingType}`,
     () =>
       apiFetch(
-        `/api/reservations/available-times?fleet_id=${boat.id}&date=${bookingData.date}&booking_type=${bookingData.bookingType}`
-      )
+        `/api/reservations/available-times?fleet_id=${boat.id}&date=${bookingData.date}&booking_type=${bookingData.bookingType}`,
+      ),
   );
 
   const destinations = useAsyncData<DestinationsResponse>(
     true,
     "destinations",
-    () => apiFetch("/api/reservations/destinations")
+    () => apiFetch("/api/reservations/destinations"),
   );
 
   useEffect(() => {
@@ -328,24 +330,26 @@ const [calendarMonth, setCalendarMonth] = useState<Date>(
       return { ...prev, memberPhone: phone };
     });
   }, [bookingMeta.data?.data?.member_phone]);
-useEffect(() => {
-  if (!bookingData.date) return;
+  useEffect(() => {
+    if (!bookingData.date) return;
 
-  const nextMonth = toLocalDate(bookingData.date);
+    const nextMonth = toLocalDate(bookingData.date);
 
-  setCalendarMonth((prev) => {
-    if (
-      prev.getFullYear() === nextMonth.getFullYear() &&
-      prev.getMonth() === nextMonth.getMonth()
-    ) {
-      return prev;
-    }
+    setCalendarMonth((prev) => {
+      if (
+        prev.getFullYear() === nextMonth.getFullYear() &&
+        prev.getMonth() === nextMonth.getMonth()
+      ) {
+        return prev;
+      }
 
-    return nextMonth;
-  });
-}, [bookingData.date]);
+      return nextMonth;
+    });
+  }, [bookingData.date]);
   const fetchCreatedReservation = async (reservationId: number) => {
-    const data = await apiFetch<ReservationResponse>(`/api/reservations/${reservationId}`);
+    const data = await apiFetch<ReservationResponse>(
+      `/api/reservations/${reservationId}`,
+    );
     setCreatedReservation(data.data);
   };
 
@@ -370,7 +374,9 @@ useEffect(() => {
 
   const selectedDateMeta = useMemo(() => {
     return (
-      availableDates.data?.data?.find((item) => item.date === bookingData.date) || null
+      availableDates.data?.data?.find(
+        (item) => item.date === bookingData.date,
+      ) || null
     );
   }, [availableDates.data, bookingData.date]);
 
@@ -399,18 +405,18 @@ useEffect(() => {
     ];
   }, [selectedDateMeta, bookingData.date]);
 
-  const selectedDestinationName =
-    bookingData.destination
-      ? destinations.data?.data?.find((d) => d.id === bookingData.destination)?.name ||
-      "Not specified"
-      : "Not specified";
+  const selectedDestinationName = bookingData.destination
+    ? destinations.data?.data?.find((d) => d.id === bookingData.destination)
+        ?.name || "Not specified"
+    : "Not specified";
 
-  const dueTimeFormatted = availableTimes.data?.meta?.due_time_formatted || "--:--";
+  const dueTimeFormatted =
+    availableTimes.data?.meta?.due_time_formatted || "--:--";
   const isWaitlistSelected = !!availableTimes.data?.meta?.is_waitlist;
   const selectedBookingTypeLabel =
     availableTimes.data?.meta?.booking_type_label ||
     bookingMeta.data?.data?.booking_types?.find(
-      (t) => t.value === bookingData.bookingType
+      (t) => t.value === bookingData.bookingType,
     )?.label ||
     bookingData.bookingType ||
     "—";
@@ -431,16 +437,18 @@ useEffect(() => {
     return set;
   }, [availableDates.data, today, maxDate]);
 
-
-
-
   const startTimeLabel =
-    availableTimes.data?.data?.find((t) => t.time === bookingData.startTime)?.label ||
+    availableTimes.data?.data?.find((t) => t.time === bookingData.startTime)
+      ?.label ||
     bookingData.startTime ||
     "—";
 
   const validateStepOne = () => {
-    if (!bookingData.date || !bookingData.bookingType || !bookingData.startTime) {
+    if (
+      !bookingData.date ||
+      !bookingData.bookingType ||
+      !bookingData.startTime
+    ) {
       setBookingError("Please fill in all required booking fields.");
       return false;
     }
@@ -463,7 +471,9 @@ useEffect(() => {
     }
 
     if (boatCapacity > 0 && passengerCount > boatCapacity) {
-      setBookingError(`Total passengers exceed boat capacity of ${boatCapacity}.`);
+      setBookingError(
+        `Total passengers exceed boat capacity of ${boatCapacity}.`,
+      );
       return false;
     }
 
@@ -484,20 +494,23 @@ useEffect(() => {
         setIsSubmitting(true);
         setBookingError(null);
 
-        const response = await apiFetch<ReservationResponse>("/api/reservations", {
-          method: "POST",
-          body: JSON.stringify({
-            fleet_id: boat.id,
-            start_date: bookingData.date,
-            booking_type: bookingData.bookingType,
-            start_time: bookingData.startTime,
-            destination: bookingData.destination || undefined,
-            customer_notes: bookingData.notes || undefined,
-            member_phone: bookingData.memberPhone.trim(),
-            total_passengers: Number(bookingData.totalPassengers),
-            children_details: bookingData.childrenDetails || undefined,
-          }),
-        });
+        const response = await apiFetch<ReservationResponse>(
+          "/api/reservations",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              fleet_id: boat.id,
+              start_date: bookingData.date,
+              booking_type: bookingData.bookingType,
+              start_time: bookingData.startTime,
+              destination: bookingData.destination || undefined,
+              customer_notes: bookingData.notes || undefined,
+              member_phone: bookingData.memberPhone.trim(),
+              total_passengers: Number(bookingData.totalPassengers),
+              children_details: bookingData.childrenDetails || undefined,
+            }),
+          },
+        );
 
         setCreatedReservationId(response.data.id);
         setCreatedReservation(response.data);
@@ -505,7 +518,9 @@ useEffect(() => {
         setStep(3);
         window.scrollTo(0, 0);
       } catch (error: any) {
-        setBookingError(error?.message || "Failed to create booking. Please try again.");
+        setBookingError(
+          error?.message || "Failed to create booking. Please try again.",
+        );
       } finally {
         setIsSubmitting(false);
       }
@@ -522,7 +537,7 @@ useEffect(() => {
                 "w-10 h-10 rounded-full flex items-center justify-center text-base font-semibold border transition-all",
                 step === 1
                   ? "bg-blue-primary text-white border-blue-primary"
-                  : "bg-white text-gray-500 border-gray-300"
+                  : "bg-white text-gray-500 border-gray-300",
               )}
             >
               1
@@ -532,7 +547,7 @@ useEffect(() => {
                 "w-10 h-10 rounded-full flex items-center justify-center text-base font-semibold border transition-all",
                 step === 2
                   ? "bg-blue-primary text-white border-blue-primary"
-                  : "bg-white text-gray-500 border-gray-300"
+                  : "bg-white text-gray-500 border-gray-300",
               )}
             >
               2
@@ -556,7 +571,8 @@ useEffect(() => {
                   </h2>
 
                   <div className="text-gray-500 text-[14px]">
-                    {[boat.type, boat.category].filter(Boolean).join(" • ") || "Boat"}
+                    {[boat.type, boat.category].filter(Boolean).join(" • ") ||
+                      "Boat"}
                   </div>
                 </div>
 
@@ -572,7 +588,9 @@ useEffect(() => {
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 md:px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-600 text-[15px]">{boatLocation}</span>
+                  <span className="text-gray-600 text-[15px]">
+                    {boatLocation}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -596,43 +614,46 @@ useEffect(() => {
                 )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-  <div className="space-y-2">
-  <Label className="text-[#171A22] text-[14px] font-semibold">
-    Date *
-  </Label>
+                  <div className="space-y-2">
+                    <Label className="text-[#171A22] text-[14px] font-semibold">
+                      Date *
+                    </Label>
 
-  {availableDates.isLoading ? (
-    <div className="h-[320px] bg-gray-100 rounded-lg animate-pulse" />
-  ) : availableDates.error ? (
-    <div className="text-red-600 text-sm">Failed to load dates</div>
-  ) : (
-    <div className="rounded-lg border border-gray-300 bg-white p-2">
-     <Calendar
-  mode="single"
-  month={calendarMonth}
-  onMonthChange={setCalendarMonth}
-  selected={selectedBookingDate}
-  onSelect={(date) => {
-    if (!date) return;
+                    {availableDates.isLoading ? (
+                      <div className="h-[320px] bg-gray-100 rounded-lg animate-pulse" />
+                    ) : availableDates.error ? (
+                      <div className="text-red-600 text-sm">
+                        Failed to load dates
+                      </div>
+                    ) : (
+                      <div className="rounded-lg border border-gray-300 bg-white p-2">
+                        <Calendar
+                          mode="single"
+                          month={calendarMonth}
+                          onMonthChange={setCalendarMonth}
+                          selected={selectedBookingDate}
+                          onSelect={(date) => {
+                            if (!date) return;
 
-    const normalizedDate = new Date(date);
-    normalizedDate.setHours(0, 0, 0, 0);
+                            const normalizedDate = new Date(date);
+                            normalizedDate.setHours(0, 0, 0, 0);
 
-    const apiDate = toApiDate(normalizedDate);
-    handleInputChange("date", apiDate);
-  }}
-  className="w-full"
-  initialFocus
-/>
-    </div>
-  )}
+                            const apiDate = toApiDate(normalizedDate);
+                            handleInputChange("date", apiDate);
+                          }}
+                          className="w-full"
+                          initialFocus
+                        />
+                      </div>
+                    )}
 
-  {bookingData.date && (
-    <div className="text-[13px] text-gray-500">
-      Selected: {format(selectedBookingDate as Date, "MM/dd/yyyy")}
-    </div>
-  )}
-</div>
+                    {bookingData.date && (
+                      <div className="text-[13px] text-gray-500">
+                        Selected:{" "}
+                        {format(selectedBookingDate as Date, "MM/dd/yyyy")}
+                      </div>
+                    )}
+                  </div>
 
                   <div>
                     <Label className="text-[#171A22] text-[14px] font-semibold mb-3 block">
@@ -641,14 +662,17 @@ useEffect(() => {
 
                     <div className="space-y-2 mb-2">
                       {bookingTypeCards.map((item) => {
-                        const isSelected = bookingData.bookingType === item.value;
+                        const isSelected =
+                          bookingData.bookingType === item.value;
 
                         return (
                           <button
                             key={item.value}
                             type="button"
                             disabled={item.isDisabled}
-                            onClick={() => handleInputChange("bookingType", item.value)}
+                            onClick={() =>
+                              handleInputChange("bookingType", item.value)
+                            }
                             className={cn(
                               "w-full min-h-[48px] rounded-lg border px-4 flex items-center justify-between text-left transition-all text-[14px]",
                               item.isDisabled
@@ -657,7 +681,7 @@ useEffect(() => {
                                   ? "bg-blue-primary text-white border-blue-primary"
                                   : item.isWaitlist
                                     ? "bg-[#F3F4F8] text-gray-600 border-gray-200"
-                                    : "bg-white text-[#171A22] border-gray-200 hover:border-blue-primary/40"
+                                    : "bg-white text-[#171A22] border-gray-200 hover:border-blue-primary/40",
                             )}
                           >
                             <span className="font-medium">{item.label}</span>
@@ -675,12 +699,16 @@ useEffect(() => {
                     <div className="flex items-start gap-2 text-gray-500 mb-5 pl-1">
                       <Info className="w-4 h-4 mt-0.5 flex-shrink-0" />
                       <span className="text-[13px]">
-                        Due back At or before {dueTimeFormatted === "--:--" ? "—" : dueTimeFormatted}
+                        Due back At or before{" "}
+                        {dueTimeFormatted === "--:--" ? "—" : dueTimeFormatted}
                       </span>
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="startTime" className="text-[#171A22] text-[14px] font-semibold">
+                      <Label
+                        htmlFor="startTime"
+                        className="text-[#171A22] text-[14px] font-semibold"
+                      >
                         Start Time *
                       </Label>
 
@@ -693,7 +721,9 @@ useEffect(() => {
                       ) : (
                         <Select
                           value={bookingData.startTime}
-                          onValueChange={(value) => handleInputChange("startTime", value)}
+                          onValueChange={(value) =>
+                            handleInputChange("startTime", value)
+                          }
                         >
                           <SelectTrigger
                             id="startTime"
@@ -720,17 +750,23 @@ useEffect(() => {
 
                 <div className="space-y-5">
                   <div className="space-y-2">
-                    <Label htmlFor="memberPhone" className="text-[#171A22] text-[14px] font-semibold">
+                    <Label
+                      htmlFor="memberPhone"
+                      className="text-[#171A22] text-[14px] font-semibold"
+                    >
                       Contact Phone Number *
                     </Label>
                     <p className="text-gray-500 text-[12px]">
-                      Please enter your phone number if different from the one in our system
+                      Please enter your phone number if different from the one
+                      in our system
                     </p>
                     <input
                       id="memberPhone"
                       type="text"
                       value={bookingData.memberPhone}
-                      onChange={(e) => handleInputChange("memberPhone", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("memberPhone", e.target.value)
+                      }
                       className="w-full h-11 rounded-lg border border-gray-300 bg-white px-3 text-[14px] outline-none focus:border-blue-primary"
                       placeholder="(555) 123-4567"
                     />
@@ -752,7 +788,9 @@ useEffect(() => {
                         type="number"
                         min={1}
                         value={bookingData.totalPassengers}
-                        onChange={(e) => handleInputChange("totalPassengers", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("totalPassengers", e.target.value)
+                        }
                         className="w-full h-11 rounded-lg border border-gray-300 bg-white px-3 text-[14px] outline-none focus:border-blue-primary"
                         placeholder="4"
                       />
@@ -772,7 +810,9 @@ useEffect(() => {
                         id="childrenDetails"
                         type="text"
                         value={bookingData.childrenDetails}
-                        onChange={(e) => handleInputChange("childrenDetails", e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("childrenDetails", e.target.value)
+                        }
                         className="w-full h-11 rounded-lg border border-gray-300 bg-white px-3 text-[14px] outline-none focus:border-blue-primary"
                         placeholder="Age/Weight"
                       />
@@ -780,14 +820,19 @@ useEffect(() => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="notes" className="text-[#171A22] text-[14px] font-semibold">
+                    <Label
+                      htmlFor="notes"
+                      className="text-[#171A22] text-[14px] font-semibold"
+                    >
                       Notes (Optional)
                     </Label>
                     <Textarea
                       id="notes"
                       placeholder="Any special requests..."
                       value={bookingData.notes}
-                      onChange={(e) => handleInputChange("notes", e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("notes", e.target.value)
+                      }
                       className="bg-white border-gray-300 min-h-[90px] rounded-lg text-[14px] px-3 py-2"
                     />
                   </div>
@@ -826,7 +871,8 @@ useEffect(() => {
                   </h2>
 
                   <div className="text-gray-500 text-[14px]">
-                    {[boat.type, boat.category].filter(Boolean).join(" • ") || "Boat"}
+                    {[boat.type, boat.category].filter(Boolean).join(" • ") ||
+                      "Boat"}
                   </div>
                 </div>
 
@@ -842,7 +888,9 @@ useEffect(() => {
               <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-5 md:px-6 py-4 border-b border-gray-200">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-gray-500" />
-                  <span className="text-gray-600 text-[15px]">{boatLocation}</span>
+                  <span className="text-gray-600 text-[15px]">
+                    {boatLocation}
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -866,8 +914,8 @@ useEffect(() => {
                         {selectedBookingTypeLabel}
                       </p>
                       <p className="text-gray-600 text-sm">
-                        This slot type is already reserved. Your booking will be submitted to
-                        the waitlist and saved as pending.
+                        This slot type is already reserved. Your booking will be
+                        submitted to the waitlist and saved as pending.
                       </p>
                     </div>
                   </div>
@@ -884,7 +932,9 @@ useEffect(() => {
                   </div>
 
                   <div className="flex justify-between py-2 border-b border-gray-100 gap-4">
-                    <span className="text-gray-500 text-sm">Reservation Type</span>
+                    <span className="text-gray-500 text-sm">
+                      Reservation Type
+                    </span>
                     <span className="text-[#171A22] text-sm font-semibold text-right">
                       {selectedBookingTypeLabel}
                     </span>
@@ -945,7 +995,7 @@ useEffect(() => {
                         "px-3 py-1 rounded-full text-xs font-medium border",
                         isWaitlistSelected
                           ? "bg-yellow-100 border-yellow-300 text-yellow-800"
-                          : "bg-green-100 border-green-300 text-green-800"
+                          : "bg-green-100 border-green-300 text-green-800",
                       )}
                     >
                       {isWaitlistSelected ? "Pending Waitlist" : "Confirmed"}
@@ -971,7 +1021,9 @@ useEffect(() => {
                     <h4 className="text-[#171A22] text-sm font-semibold mb-1">
                       Gold Membership
                     </h4>
-                    <p className="text-gray-600 text-xs">Included with Membership</p>
+                    <p className="text-gray-600 text-xs">
+                      Included with Membership
+                    </p>
                   </div>
                   <span className="px-2 py-1 rounded-md bg-green-50 border border-green-200 text-green-700 text-xs font-medium">
                     No Charge
@@ -985,8 +1037,8 @@ useEffect(() => {
                       Post-Trip Billing
                     </h4>
                     <p className="text-gray-600 text-xs">
-                      No payment is required now. Fuel and usage charges will be billed
-                      after your trip based on actual consumption.
+                      No payment is required now. Fuel and usage charges will be
+                      billed after your trip based on actual consumption.
                     </p>
                   </div>
                 </div>
@@ -1031,7 +1083,9 @@ useEffect(() => {
                 <div className="flex justify-center items-center py-12">
                   <div className="text-center">
                     <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-primary"></div>
-                    <p className="mt-2 text-gray-600">Confirming your booking...</p>
+                    <p className="mt-2 text-gray-600">
+                      Confirming your booking...
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -1043,7 +1097,7 @@ useEffect(() => {
                           "w-24 h-24 rounded-full flex items-center justify-center",
                           createdReservation.status === "pending"
                             ? "bg-yellow-500/10"
-                            : "bg-green-500/10"
+                            : "bg-green-500/10",
                         )}
                       >
                         <div
@@ -1051,7 +1105,7 @@ useEffect(() => {
                             "w-12 h-12 rounded-full flex items-center justify-center",
                             createdReservation.status === "pending"
                               ? "bg-yellow-500"
-                              : "bg-green-500"
+                              : "bg-green-500",
                           )}
                         >
                           <CheckCircle2 className="w-5 h-5 text-white" />
@@ -1075,7 +1129,9 @@ useEffect(() => {
 
                   <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 mb-5">
                     <div className="text-center mb-5 pb-5 border-b border-gray-100">
-                      <h3 className="text-gray-500 text-lg font-medium mb-2">Booking ID</h3>
+                      <h3 className="text-gray-500 text-lg font-medium mb-2">
+                        Booking ID
+                      </h3>
                       <p className="text-blue-primary text-2xl font-bold">
                         {createdReservation.booking_code}
                       </p>
@@ -1094,11 +1150,12 @@ useEffect(() => {
                         <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.start_date || bookingData.date
                             ? format(
-                              toLocalDate(
-                                createdReservation.start_date || bookingData.date
-                              ),
-                              "MM/dd/yyyy"
-                            )
+                                toLocalDate(
+                                  createdReservation.start_date ||
+                                    bookingData.date,
+                                ),
+                                "MM/dd/yyyy",
+                              )
                             : "—"}
                         </span>
                       </div>
@@ -1108,7 +1165,9 @@ useEffect(() => {
                         <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.start_time_formatted ||
                             createdReservation.start_time}{" "}
-                          - {createdReservation.due_time_formatted || dueTimeFormatted}
+                          -{" "}
+                          {createdReservation.due_time_formatted ||
+                            dueTimeFormatted}
                         </span>
                       </div>
 
@@ -1120,7 +1179,9 @@ useEffect(() => {
                       </div>
 
                       <div className="flex justify-between py-2 gap-4">
-                        <span className="text-gray-500 text-sm">Reservation Type</span>
+                        <span className="text-gray-500 text-sm">
+                          Reservation Type
+                        </span>
                         <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.booking_type_label ||
                             createdReservation.booking_type}
@@ -1135,14 +1196,20 @@ useEffect(() => {
                       </div>
 
                       <div className="flex justify-between py-2 gap-4">
-                        <span className="text-gray-500 text-sm">Contact Phone</span>
+                        <span className="text-gray-500 text-sm">
+                          Contact Phone
+                        </span>
                         <span className="text-[#171A22] text-sm font-semibold text-right">
-                          {createdReservation.member_phone || bookingData.memberPhone || "—"}
+                          {createdReservation.member_phone ||
+                            bookingData.memberPhone ||
+                            "—"}
                         </span>
                       </div>
 
                       <div className="flex justify-between py-2 gap-4">
-                        <span className="text-gray-500 text-sm">Passengers</span>
+                        <span className="text-gray-500 text-sm">
+                          Passengers
+                        </span>
                         <span className="text-[#171A22] text-sm font-semibold text-right">
                           {createdReservation.total_passengers ||
                             bookingData.totalPassengers ||
@@ -1166,12 +1233,14 @@ useEffect(() => {
                             "px-2 py-1 rounded-full text-xs font-medium border",
                             createdReservation.status === "pending"
                               ? "bg-yellow-100 border-yellow-300 text-yellow-800"
-                              : "bg-green-100 border-green-300 text-green-800"
+                              : "bg-green-100 border-green-300 text-green-800",
                           )}
                         >
                           {createdReservation.status
-                            ? createdReservation.status.charAt(0).toUpperCase() +
-                            createdReservation.status.slice(1)
+                            ? createdReservation.status
+                                .charAt(0)
+                                .toUpperCase() +
+                              createdReservation.status.slice(1)
                             : "Pending"}
                         </span>
                       </div>
@@ -1180,8 +1249,8 @@ useEffect(() => {
                     <div className="flex items-start gap-3 p-3 bg-blue-50 rounded-lg mt-5">
                       <Info className="w-5 h-5 text-blue-primary flex-shrink-0 mt-0.5" />
                       <p className="text-gray-600 text-xs text-left">
-                        No payment is required now. Fuel and usage charges will be billed
-                        after your trip based on actual consumption.
+                        No payment is required now. Fuel and usage charges will
+                        be billed after your trip based on actual consumption.
                       </p>
                     </div>
                   </div>
