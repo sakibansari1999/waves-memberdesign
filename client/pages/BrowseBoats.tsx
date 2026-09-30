@@ -4,7 +4,8 @@ import { useSearchParams, useNavigate } from "react-router-dom";
 import BoatCard from "@/components/BoatCard";
 import FiltersSidebar from "@/components/FiltersSidebar";
 import BoatDetailModal from "@/components/BoatDetailModal";
-import { useBoats } from "@/hooks/useBoats";
+// import { useBoats } from "@/hooks/useBoats";
+import { useInfiniteBoats } from "@/hooks/useInfiniteBoats";
 import { BoatFilters } from "@/utils/api";
 import { Button } from "@/components/ui/button";
 
@@ -14,6 +15,8 @@ const MAX_LENGTH = 100;
 export default function BrowseBoats() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const [selectedBoat, setSelectedBoat] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -113,7 +116,40 @@ export default function BrowseBoats() {
     ],
   );
 
-  const { data: boatsResponse, isLoading, error } = useBoats(filters);
+  // const { data: boatsResponse, isLoading, error } = useBoats(filters);
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteBoats(filters);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      },
+      {
+        threshold: 0.5,
+      },
+    );
+
+    const currentRef = loadMoreRef.current;
+
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const handleViewBoat = (boat: any) => {
     setSelectedBoat(boat);
@@ -154,7 +190,8 @@ export default function BrowseBoats() {
     setSearchParams({});
   };
 
-  const boats = boatsResponse?.data || [];
+  // const boats = boatsResponse?.data || [];
+  const boats = data?.pages.flatMap((page) => page.data) ?? [];
 
   const formatDateDisplay = (dateString: string | null) => {
     if (!dateString) return "Select a date";
@@ -166,6 +203,8 @@ export default function BrowseBoats() {
       year: "numeric",
     });
   };
+
+  console.log(boats);
 
   return (
     <div className="min-h-screen bg-background">
@@ -313,6 +352,12 @@ export default function BrowseBoats() {
                 />
               ))}
             </div>
+          )}
+
+          <div ref={loadMoreRef} className="h-10" />
+
+          {isFetchingNextPage && (
+            <div className="text-center py-4">Loading more boats...</div>
           )}
 
           {!isLoading && boats.length === 0 && (

@@ -11,7 +11,7 @@ interface ApiOptions extends RequestInit {
  */
 export async function apiCall<T>(
   endpoint: string,
-  options: ApiOptions = {}
+  options: ApiOptions = {},
 ): Promise<T> {
   const { auth = true, ...fetchOptions } = options;
 
@@ -38,7 +38,7 @@ export async function apiCall<T>(
   if (response.status === 401) {
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
-    
+
     throw new Error("Unauthorized. Please login again.");
   }
 
@@ -56,7 +56,7 @@ export async function apiCall<T>(
  */
 export async function publicApiCall<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
 ): Promise<T> {
   return apiCall<T>(endpoint, { ...options, auth: false });
 }
@@ -72,7 +72,7 @@ export async function fetchProfile<T>(): Promise<T> {
  * Save/Update user profile
  */
 export async function saveProfile<T>(
-  data: Record<string, unknown>
+  data: Record<string, unknown>,
 ): Promise<T> {
   return apiCall<T>("/api/profile", {
     method: "PUT",
@@ -87,14 +87,14 @@ export async function saveProfile<T>(
 export interface BoatFilters {
   search?: string;
   date?: string;
-    slot?: string; // ✅ ADD THIS
+  slot?: string; // ✅ ADD THIS
   location?: string | string[];
   boat_type?: string | string[];
   length_min?: number;
   length_max?: number;
   features?: string | string[];
   sort?: string;
-  order?: 'asc' | 'desc';
+  order?: "asc" | "desc";
   page?: number;
   per_page?: number;
 }
@@ -147,37 +147,45 @@ export interface CalendarAvailability {
 /**
  * Get all boats with filters
  */
-export async function fetchBoats(filters: BoatFilters = {}): Promise<BoatListResponse> {
+export async function fetchBoats(
+  filters: BoatFilters = {},
+): Promise<BoatListResponse> {
   const params = new URLSearchParams();
 
-  if (filters.search) params.append('search', filters.search);
-  if (filters.date) params.append('date', filters.date);
- if (filters.slot) {
-  const mapping: Record<string, string> = {
-    AM: "AM",
-    PM: "PM",
-    "full-day": "FULL_DAY",
-  };
+  if (filters.search) params.append("search", filters.search);
+  if (filters.date) params.append("date", filters.date);
+  if (filters.slot) {
+    const mapping: Record<string, string> = {
+      AM: "AM",
+      PM: "PM",
+      "full-day": "FULL_DAY",
+    };
 
-  params.append('booking_type', mapping[filters.slot]);
-}
+    params.append("booking_type", mapping[filters.slot]);
+  }
   if (filters.location) {
-    const locations = Array.isArray(filters.location) ? filters.location : [filters.location];
-    locations.forEach(loc => params.append('location', loc));
+    const locations = Array.isArray(filters.location)
+      ? filters.location
+      : [filters.location];
+    locations.forEach((loc) => params.append("location", loc));
   }
   if (filters.boat_type) {
-    const types = Array.isArray(filters.boat_type) ? filters.boat_type : [filters.boat_type];
-    types.forEach(type => params.append('boat_type', type));
+    const types = Array.isArray(filters.boat_type)
+      ? filters.boat_type
+      : [filters.boat_type];
+    types.forEach((type) => params.append("boat_type", type));
   }
-  if (filters.length_min) params.append('length_min', filters.length_min.toString());
-  if (filters.length_max) params.append('length_max', filters.length_max.toString());
-  if (filters.sort) params.append('sort', filters.sort);
-  if (filters.order) params.append('order', filters.order);
-  if (filters.page) params.append('page', filters.page.toString());
-  if (filters.per_page) params.append('per_page', filters.per_page.toString());
+  if (filters.length_min)
+    params.append("length_min", filters.length_min.toString());
+  if (filters.length_max)
+    params.append("length_max", filters.length_max.toString());
+  if (filters.sort) params.append("sort", filters.sort);
+  if (filters.order) params.append("order", filters.order);
+  if (filters.page) params.append("page", filters.page.toString());
+  if (filters.per_page) params.append("per_page", filters.per_page.toString());
 
   const queryString = params.toString();
-  const endpoint = `/api/fleets${queryString ? '?' + queryString : ''}`;
+  const endpoint = `/api/fleets${queryString ? "?" + queryString : ""}`;
 
   return apiCall<BoatListResponse>(endpoint);
 }
@@ -196,19 +204,19 @@ export async function fetchCalendarAvailability(
   month: number,
   year: number,
   location?: string,
-  boat_type?: string
+  boat_type?: string,
 ): Promise<CalendarAvailability> {
   const params = new URLSearchParams({
     month: month.toString(),
     year: year.toString(),
   });
 
-  if (location) params.append('location', location);
-  if (boat_type) params.append('boat_type', boat_type);
+  if (location) params.append("location", location);
+  if (boat_type) params.append("boat_type", boat_type);
 
   const queryString = params.toString();
   return apiCall<CalendarAvailability>(
-    `/api/calendar-availability?${queryString}`
+    `/api/calendar-availability?${queryString}`,
   );
 }
 
@@ -216,21 +224,21 @@ export async function fetchCalendarAvailability(
  * Get boat locations for filter
  */
 export async function fetchBoatLocations(): Promise<{ data: string[] }> {
-  return apiCall<{ data: string[] }>('/api/fleets/locations');
+  return apiCall<{ data: string[] }>("/api/fleets/locations");
 }
 
 /**
  * Get boat types for filter
  */
 export async function fetchBoatTypes(): Promise<{ data: string[] }> {
-  return apiCall<{ data: string[] }>('/api/fleets/types');
+  return apiCall<{ data: string[] }>("/api/fleets/types");
 }
 
 /**
  * Get boat features for filter
  */
 export async function fetchBoatFeatures(): Promise<{ data: string[] }> {
-  return apiCall<{ data: string[] }>('/api/fleets/features');
+  return apiCall<{ data: string[] }>("/api/fleets/features");
 }
 
 /**
@@ -312,18 +320,18 @@ export interface AvailabilityCheck {
 export async function fetchAvailableDates(
   fleetId: number,
   month?: number,
-  year?: number
+  year?: number,
 ): Promise<AvailableDateResponse> {
   const params = new URLSearchParams({
     fleet_id: fleetId.toString(),
   });
 
-  if (month) params.append('month', month.toString());
-  if (year) params.append('year', year.toString());
+  if (month) params.append("month", month.toString());
+  if (year) params.append("year", year.toString());
 
   const queryString = params.toString();
   return apiCall<AvailableDateResponse>(
-    `/api/reservations/available-dates?${queryString}`
+    `/api/reservations/available-dates?${queryString}`,
   );
 }
 
@@ -332,7 +340,7 @@ export async function fetchAvailableDates(
  */
 export async function fetchAvailableTimes(
   fleetId: number,
-  date: string
+  date: string,
 ): Promise<AvailableTimesResponse> {
   const params = new URLSearchParams({
     fleet_id: fleetId.toString(),
@@ -340,7 +348,7 @@ export async function fetchAvailableTimes(
   });
 
   return apiCall<AvailableTimesResponse>(
-    `/api/reservations/available-times?${params.toString()}`
+    `/api/reservations/available-times?${params.toString()}`,
   );
 }
 
@@ -348,7 +356,7 @@ export async function fetchAvailableTimes(
  * Get list of destinations
  */
 export async function fetchDestinations(): Promise<DestinationsResponse> {
-  return apiCall<DestinationsResponse>('/api/reservations/destinations');
+  return apiCall<DestinationsResponse>("/api/reservations/destinations");
 }
 
 /**
@@ -358,7 +366,7 @@ export async function checkAvailability(
   fleetId: number,
   date: string,
   startTime: string,
-  durationHours: number
+  durationHours: number,
 ): Promise<AvailabilityCheck> {
   const params = new URLSearchParams({
     fleet_id: fleetId.toString(),
@@ -368,7 +376,7 @@ export async function checkAvailability(
   });
 
   return apiCall<AvailabilityCheck>(
-    `/api/reservations/check-availability?${params.toString()}`
+    `/api/reservations/check-availability?${params.toString()}`,
   );
 }
 
@@ -376,10 +384,10 @@ export async function checkAvailability(
  * Create a reservation (booking)
  */
 export async function createReservation(
-  payload: BookingPayload
+  payload: BookingPayload,
 ): Promise<ReservationResponse> {
-  return apiCall<ReservationResponse>('/api/reservations', {
-    method: 'POST',
+  return apiCall<ReservationResponse>("/api/reservations", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }
@@ -387,7 +395,9 @@ export async function createReservation(
 /**
  * Get reservation details
  */
-export async function fetchReservation(id: number): Promise<ReservationResponse> {
+export async function fetchReservation(
+  id: number,
+): Promise<ReservationResponse> {
   return apiCall<ReservationResponse>(`/api/reservations/${id}`);
 }
 
@@ -438,15 +448,17 @@ export interface MyBookingsResponse {
 /**
  * Get current user's bookings with optional status filter
  */
-export async function fetchMyBookings(status?: string): Promise<MyBookingsResponse> {
+export async function fetchMyBookings(
+  status?: string,
+): Promise<MyBookingsResponse> {
   const params = new URLSearchParams();
 
   if (status) {
-    params.append('status', status);
+    params.append("status", status);
   }
 
   const queryString = params.toString();
-  const endpoint = `/api/my-bookings${queryString ? '?' + queryString : ''}`;
+  const endpoint = `/api/my-bookings${queryString ? "?" + queryString : ""}`;
 
   return apiCall<MyBookingsResponse>(endpoint);
 }
