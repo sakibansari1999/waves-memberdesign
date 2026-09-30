@@ -204,8 +204,6 @@ export default function BrowseBoats() {
     });
   };
 
-  console.log(boats);
-
   return (
     <div className="min-h-screen bg-background">
       <main className="max-w-[1440px] mx-auto px-4 md:px-6 lg:px-10 py-5 flex flex-col lg:flex-row gap-5 lg:gap-10">
