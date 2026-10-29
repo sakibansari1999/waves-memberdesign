@@ -193,6 +193,8 @@ export default function BrowseBoats() {
   // const boats = boatsResponse?.data || [];
   const boats = data?.pages.flatMap((page) => page.data) ?? [];
 
+  console.log(boats);
+
   const formatDateDisplay = (dateString: string | null) => {
     if (!dateString) return "Select a date";
     const date = new Date(dateString);
