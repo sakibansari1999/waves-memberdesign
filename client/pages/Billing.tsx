@@ -2,9 +2,6 @@ import { useMemo, useState } from "react";
 import { Download, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useAuth } from "@/context/AuthContext";
-import { formatMembershipNumber } from "@/utils/formatMembershipNumber";
-
  const API_BASE_URL =import.meta.env.VITE_API_BASE_URL
 
 interface BillingResponse {
@@ -385,10 +382,6 @@ function InfoBox({ label, value }: { label: string; value: string }) {
 }
 
 export default function Billing() {
-  const { user } = useAuth();
-  const memberIdLabel =
-    user?.profile?.membership_number_display ||
-    formatMembershipNumber(user?.profile?.membership_number, user?.profile?.id);
   const [period, setPeriod] = useState("12m");
   const [type, setType] = useState("all");
   const [viewInvoiceId, setViewInvoiceId] = useState<number | null>(null);
@@ -418,9 +411,6 @@ export default function Billing() {
               Invoices & Billing
             </h1>
             <p className="text-[15px] text-[#6B7280]">
-              Member ID{" "}
-              <span className="font-semibold text-[#111827]">{memberIdLabel}</span>
-              {" · "}
               Manage your payments, view history, and update payment methods.
             </p>
           </div>

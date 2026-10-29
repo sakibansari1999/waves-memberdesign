@@ -1,136 +1,48 @@
-import { useMemo, useState } from "react";
+import { MapPin, Sailboat, Ruler, Users } from "lucide-react";
+import { useState } from "react";
 import { Swiper, SwiperSlide } from "swiper/react";
 import { Navigation, Thumbs } from "swiper/modules";
-import { CheckCircle2, Clock3 } from "lucide-react";
-
-interface BookingTypeStatus {
-  available?: boolean;
-  waitlist?: boolean;
-  label?: string;
-}
-
-interface BoatAvailability {
-  AM?: BookingTypeStatus;
-  PM?: BookingTypeStatus;
-  FULL_DAY?: BookingTypeStatus;
-}
 
 interface BoatCardProps {
-  id: string | number;
+  id: string;
   name: string;
-  type?: string;
-  category?: string;
-  image?: string | null;
-  images?: string[];
-  location?: string;
-  boatType?: string;
-  length?: string | number | null;
-  guests?: number | null;
-  features?: string[];
-
-  pricePerHour?: number | null;
+  type: string;
+  category: string;
+  image: string;
+  location: string;
+  boatType: string;
+  length: string;
+  guests: number;
+  features: string[];
+  pricePerHour?: number;
   badge?: "most-booked" | "unavailable" | null;
-
-  fuelCapacity?: string | number | null;
-  weightCapacity?: string | number | null;
-  motor?: string | null;
-  notes?: string | null;
-  boatAddress?: string | null;
-
-  lastBookedFormatted?: string | null;
-  lastBooked?: string | null;
-
-  availability?: BoatAvailability | null;
-
+  includedWithMembership?: boolean;
   onSelectBoat?: () => void;
   onViewBoat?: () => void;
 }
 
-const FEATURE_CARD_CONFIG = [
-  { key: "Fishing", label: "Fishing permitted", image: "/fish.svg" },
-  { key: "Livewell", label: "Livewell", image: "/live.svg" },
-  { key: "Offshore Use", label: "Offshore use", image: "/offshore.svg" },
-  { key: "Watersports", label: "Watersports", image: "/water.svg" },
-  { key: "Bimini", label: "Bimini", image: "/bimni.svg" },
-  { key: "Pets Allowed", label: "Pets", image: "/pets.svg" },
+const images = [
+  {
+    id: 1,
+    img: "/slider/img1.jpg",
+    alt: "Boat 1",
+  },
+  {
+    id: 2,
+    img: "/slider/img2.jpg",
+    alt: "Boat 2",
+  },
+  {
+    id: 3,
+    img: "/slider/img3.jpg",
+    alt: "Boat 3",
+  },
+  {
+    id: 4,
+    img: "/slider/img4.jpg",
+    alt: "Boat 4",
+  },
 ];
-
-function formatLength(length?: string | number | null) {
-  if (length === null || length === undefined || length === "") return "—";
-  return `${length} ft`;
-}
-
-function formatFuelCapacity(fuelCapacity?: string | number | null) {
-  if (fuelCapacity === null || fuelCapacity === undefined || fuelCapacity === "") {
-    return "—";
-  }
-  return `${fuelCapacity} gal`;
-}
-
-function formatMaxCapacity(guests?: number | null) {
-  const n = Number(guests ?? 0);
-  if (!Number.isFinite(n) || n <= 0) {
-    return "—";
-  }
-
-  return `Maximum Capacity - ${n}`;
-}
-
-function formatLastBooked(
-  lastBookedFormatted?: string | null,
-  lastBooked?: string | null,
-) {
-  if (lastBookedFormatted) return lastBookedFormatted;
-
-  if (lastBooked) {
-    const date = new Date(lastBooked);
-    if (!Number.isNaN(date.getTime())) {
-      const mm = String(date.getMonth() + 1).padStart(2, "0");
-      const dd = String(date.getDate()).padStart(2, "0");
-      const yyyy = date.getFullYear();
-
-      return `${mm}/${dd}/${yyyy}`;
-    }
-  }
-
-  return "Never";
-}
-
-function getAvailabilityPill(type: "AM" | "PM", status?: BookingTypeStatus) {
-  const isAvailable = !!status?.available && !status?.waitlist;
-  const isWaitlist = !!status?.waitlist;
-
-  if (isAvailable) {
-    return {
-      label: type,
-      text: "Available",
-      className: "bg-[#F1FAF4] border border-[#00000014]",
-      badgeTextClass: "text-[#008A3AB8]",
-      textClass: "text-[#008A3A]",
-      icon: <CheckCircle2 className="w-3.5 h-3.5 text-[#008A3A]" />,
-    };
-  }
-
-  if (isWaitlist) {
-    return {
-      label: type,
-      text: "Waitlist",
-      className: "bg-[#FFF8EE] border border-[#00000014]",
-      badgeTextClass: "text-[#B86A00]",
-      textClass: "text-[#B86A00]",
-      icon: <Clock3 className="w-3.5 h-3.5 text-[#B86A00]" />,
-    };
-  }
-
-  return {
-    label: type,
-    text: "Booked",
-    className: "bg-[#FFF7F7] border border-[#00000014]",
-    badgeTextClass: "text-[#C33A2CB8]",
-    textClass: "text-[#C33A2C]",
-    icon: null,
-  };
-}
 
 export default function BoatCard({
   id,
@@ -138,67 +50,24 @@ export default function BoatCard({
   type,
   category,
   image,
-  images,
   location,
   boatType,
   length,
   guests,
-  features = [],
+  features,
   pricePerHour,
   badge,
-  fuelCapacity,
-  weightCapacity,
-  motor,
-  notes,
-  boatAddress,
-  lastBookedFormatted,
-  lastBooked,
-  availability,
+  includedWithMembership,
   onSelectBoat,
   onViewBoat,
 }: BoatCardProps) {
-  const [thumbsSwiper, setThumbsSwiper] = useState<any>(null);
-
-  const galleryImages = useMemo(() => {
-    const all = [...(images || []), ...(image ? [image] : [])]
-      .filter(Boolean)
-      .filter((value, index, arr) => arr.indexOf(value) === index);
-
-    return all.length > 0 ? all : ["/placeholder.svg"];
-  }, [images, image]);
-
-  const safeLocation = location || "Location unavailable";
-  const safeBoatType = boatType || type || "Boat";
-  const safeLength = formatLength(length);
-  const safeGuests = Number(guests ?? 0);
-  const safeFuelCapacity = formatFuelCapacity(fuelCapacity);
-  const safeCapacityText = formatMaxCapacity(safeGuests);
-  const safeMotor = motor || "—";
-  const safeNotes = notes || boatAddress || "No notes available";
-  const safeLastBooked = formatLastBooked(lastBookedFormatted, lastBooked);
-
-  const normalizedFeatures = useMemo(() => new Set(features), [features]);
-
-  const featureCards = FEATURE_CARD_CONFIG.map((item) => {
-    const hasFeature = normalizedFeatures.has(item.key);
-
-    return {
-      ...item,
-      value: hasFeature ? "Yes" : "No",
-      enabled: hasFeature,
-    };
-  });
-
-  const amPill = getAvailabilityPill("AM", availability?.AM);
-  const pmPill = getAvailabilityPill("PM", availability?.PM);
-  const isWaitlistOnly =
-    !!availability &&
-    !availability.AM?.available &&
-    !availability.PM?.available;
+  const [thumbsSwiper, setThumbsSwiper] = useState(null);
 
   return (
     <div className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col lg:flex-row gap-5 p-5 relative">
-      <div className="w-full lg:w-[30%]">
+      {/* Image */}
+      <div className="w-[30%] ">
+        {/* MAIN SLIDER */}
         <div className="relative rounded-md overflow-hidden">
           {badge && (
             <div
@@ -216,18 +85,15 @@ export default function BoatCard({
             <Swiper
               modules={[Navigation, Thumbs]}
               navigation
-              thumbs={{
-                swiper:
-                  thumbsSwiper && !thumbsSwiper.destroyed ? thumbsSwiper : null,
-              }}
+              thumbs={{ swiper: thumbsSwiper }}
               className="h-full"
             >
-              {galleryImages.map((img, index) => (
-                <SwiperSlide key={`${id}-main-${index}`}>
+              {images.map((img, index) => (
+                <SwiperSlide key={index}>
                   <img
-                    src={img}
-                    alt={`${name} ${index + 1}`}
-                    className="w-full h-full object-cover aspect-square"
+                    src={img.img}
+                    alt={name}
+                    className="w-full h-full object-cover"
                   />
                 </SwiperSlide>
               ))}
@@ -235,44 +101,43 @@ export default function BoatCard({
           </div>
         </div>
 
-        {galleryImages.length > 1 && (
-          <Swiper
-            modules={[Thumbs]}
-            onSwiper={setThumbsSwiper}
-            spaceBetween={10}
-            slidesPerView={4}
-            className="mt-3"
-          >
-            {galleryImages.map((img, index) => (
-              <SwiperSlide key={`${id}-thumb-${index}`}>
-                <img
-                  src={img}
-                  alt={`${name} thumbnail ${index + 1}`}
-                  className="h-[60px] w-full object-cover rounded-md cursor-pointer border"
-                />
-              </SwiperSlide>
-            ))}
-          </Swiper>
-        )}
+        {/* THUMBNAILS */}
+        <Swiper
+          modules={[Thumbs]}
+          onSwiper={setThumbsSwiper}
+          spaceBetween={10}
+          slidesPerView={4}
+          className="mt-3"
+        >
+          {images.map((img, index) => (
+            <SwiperSlide key={index}>
+              <img
+                src={img.img}
+                alt="thumb"
+                className="h-[60px] w-full object-cover rounded-md cursor-pointer border"
+              />
+            </SwiperSlide>
+          ))}
+        </Swiper>
 
         <div className="w-full bg-[#FBFCFE] border border-[#EBEEF5] flex items-center justify-between rounded-[12px] py-2 px-3 mt-3">
           <p className="text-[#7C8798] font-medium text-[13px]">
             Last Booked by You
           </p>
-          <p className="text-[#0F1723] font-bold text-[13px]">
-            {safeLastBooked}
-          </p>
+          <p className="text-[#0F1723] font-bold text-[13px]">4/8/2026</p>
         </div>
       </div>
 
+      {/* Content */}
       <div className="flex-1 flex flex-col">
         <div className="flex items-start justify-between mb-2 gap-3 flex-wrap">
           <div>
             <h3 className="text-gray-900 text-[26px] font-semibold">{name}</h3>
 
+            {/* <div className="text-gray-500 text-xs mt-1">{id}</div> */}
           </div>
 
-          {pricePerHour !== null && pricePerHour !== undefined && (
+          {pricePerHour && (
             <div className="text-right">
               <div className="text-blue-primary text-2xl font-bold">
                 ${pricePerHour}
@@ -289,31 +154,38 @@ export default function BoatCard({
               fill="none"
               xmlns="http://www.w3.org/2000/svg"
             >
+              {" "}
               <path
                 d="M13.3332 6.66671C13.3332 9.99537 9.6405 13.462 8.4005 14.5327C8.1632 14.7112 7.83648 14.7112 7.59917 14.5327C6.35917 13.462 2.6665 9.99537 2.6665 6.66671C2.6665 3.72316 5.05629 1.33337 7.99984 1.33337C10.9434 1.33337 13.3332 3.72316 13.3332 6.66671"
                 stroke="#3B63FF"
                 strokeWidth="1.33333"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-              />
+              />{" "}
               <path
                 d="M6 6.66663C6 7.77046 6.89617 8.66663 8 8.66663C9.10383 8.66663 10 7.77046 10 6.66663C10 5.5628 9.10383 4.66663 8 4.66663C6.89617 4.66663 6 5.5628 6 6.66663V6.66663"
                 stroke="#3B63FF"
                 strokeWidth="1.33333"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-              />
+              />{" "}
             </svg>
             <span className="text-[#425066] text-xs font-medium">
-              {safeLocation}
+              {location}
             </span>
           </div>
 
-
+          {/* {includedWithMembership && (
+            <div className="px-2 py-1 rounded-lg border border-blue-primary/64 bg-blue-primary/11">
+              <span className="text-blue-primary text-xs font-normal">
+                Included with Membership
+              </span>
+            </div>
+          )} */}
         </div>
 
-        <div className="flex flex-col xl:flex-row xl:justify-between xl:items-center gap-4 mb-3 mt-3">
-          <div className="w-full max-w-fit flex flex-wrap items-center gap-2">
+        <div className="flex justify-between items-center gap-4 mb-3 mt-3">
+          <div className="w-full max-w-fit flex items-center gap-2">
             <div className="flex items-center gap-1">
               <svg
                 width="20"
@@ -353,7 +225,7 @@ export default function BoatCard({
               </svg>
 
               <span className="text-[#637285] font-medium text-[13px]">
-                {safeBoatType}
+                {boatType}
               </span>
             </div>
 
@@ -364,41 +236,33 @@ export default function BoatCard({
                 Fuel Capacity
               </span>
               <span className="text-[#0F1723] font-medium text-[13px]">
-                {safeFuelCapacity}
+                180 gal
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 flex-wrap">
-            <div
-              className={`flex items-center gap-1 rounded-[100px] px-2 py-1 ${amPill.className}`}
-            >
-              <span className={`font-bold text-[10px] ${amPill.badgeTextClass}`}>
-                {amPill.label}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 bg-[#F1FAF4] rounded-[100px] px-2 py-1 border border-[#00000014]">
+              <span className="text-[#008A3AB8] font-bold text-[10px]">AM</span>
+              <span className="text-[#008A3A] font-semibold text-[10px]">
+                Available
               </span>
-              <span className={`font-semibold text-[10px] ${amPill.textClass}`}>
-                {amPill.text}
-              </span>
-              {amPill.icon}
             </div>
 
-            <div
-              className={`flex items-center gap-1 rounded-[100px] px-2 py-1 ${pmPill.className}`}
-            >
-              <span className={`font-bold text-[10px] ${pmPill.badgeTextClass}`}>
-                {pmPill.label}
+            <div className="flex items-center gap-1 bg-[#FFF7F7] rounded-[100px] px-2 py-1 border border-[#00000014]">
+              <span className="text-[#C33A2CB8] font-bold text-[10px]">PM</span>
+              <span className="text-[#C33A2C] font-semibold text-[10px]">
+                Booked
               </span>
-              <span className={`font-semibold text-[10px] ${pmPill.textClass}`}>
-                {pmPill.text}
-              </span>
-              {pmPill.icon}
             </div>
           </div>
         </div>
 
-        <div className="flex flex-col lg:flex-row items-stretch gap-4 mb-3 mt-1">
-          <div className="w-full lg:w-[30%] flex items-center justify-between gap-2 px-3 py-2 bg-[#FAFBFD] border border-[#EEF2F6] rounded-[12px] whitespace-nowrap">
+        <div className="flex items-center gap-4 mb-3 mt-1">
+          {/* Length */}
+          <div className="w-[30%] flex items-center justify-between gap-2 px-3 py-2 bg-[#FAFBFD] border border-[#EEF2F6] rounded-[12px] whitespace-nowrap">
             <div className="flex items-center gap-2">
+              {/* SVG */}
               <svg
                 width="16"
                 height="16"
@@ -426,12 +290,14 @@ export default function BoatCard({
               </span>
             </div>
             <span className="text-[#0F1723] font-medium text-[12px]">
-              {safeLength}
+              {length}
             </span>
           </div>
 
-          <div className="w-full lg:max-w-fit flex items-center justify-between gap-6 px-3 py-2 bg-[#FAFBFD] border border-[#EEF2F6] rounded-[12px]">
+          {/* Capacity (this will grow automatically) */}
+          <div className="w-full max-w-fit flex items-center justify-between gap-6 px-3 py-2 bg-[#FAFBFD] border border-[#EEF2F6] rounded-[12px]">
             <div className="flex items-center gap-2">
+              {/* SVG */}
               <svg
                 width="16"
                 height="16"
@@ -460,12 +326,14 @@ export default function BoatCard({
               </span>
             </div>
             <span className="text-[#0F1723] font-medium text-[12px] whitespace-nowrap">
-              {safeCapacityText}
+              {guests} Guests / 750 lbs
             </span>
           </div>
 
-          <div className="w-full lg:w-[30%] flex items-center justify-between gap-2 px-3 py-2 bg-[#FAFBFD] border border-[#EEF2F6] rounded-[12px] whitespace-nowrap">
+          {/* Motor */}
+          <div className="w-[30%] flex items-center justify-between gap-2 px-3 py-2 bg-[#FAFBFD] border border-[#EEF2F6] rounded-[12px] whitespace-nowrap">
             <div className="flex items-center gap-2">
+              {/* SVG */}
               <svg
                 width="16"
                 height="16"
@@ -486,7 +354,7 @@ export default function BoatCard({
               </span>
             </div>
             <span className="text-[#0F1723] font-medium text-[12px]">
-              {safeMotor}
+              Twin Diesel
             </span>
           </div>
         </div>
@@ -497,10 +365,17 @@ export default function BoatCard({
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-4 w-full">
-            {featureCards.map((item) => (
+            {[
+              { label: "Fishing permitted", value: "Yes", image: "/fish.svg" },
+              { label: "Livewell", value: "No", image: "/live.svg" },
+              { label: "Offshore use", value: "Yes", image: "/offshore.svg" },
+              { label: "Watersports", value: "Yes", image: "/water.svg" },
+              { label: "Bimini", value: "Yes", image: "/bimni.svg" },
+              { label: "Pets", value: "No", image: "/pets.svg" },
+            ].map((item, index) => (
               <div
                 className="w-full flex items-center justify-between gap-3 px-2 py-2 rounded-[12px] border border-[#EEF2F6] bg-[#FAFBFD]"
-                key={item.key}
+                key={index}
               >
                 <div className="flex items-center gap-1 min-w-0">
                   <img
@@ -516,7 +391,7 @@ export default function BoatCard({
 
                 <span
                   className={`text-xs font-semibold px-3 py-1 rounded-full shrink-0 ${
-                    item.enabled
+                    item.value === "Yes"
                       ? "bg-[#E6F6EB] text-[#008A3A]"
                       : "bg-[#F1F4F8] text-[#6F7C8E]"
                   }`}
@@ -528,29 +403,43 @@ export default function BoatCard({
           </div>
         </div>
 
- 
+        {features && features.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {features.map((feature) => (
+              <span
+                key={feature}
+                className="px-2 py-1 rounded-lg bg-gray-200 text-gray-900 text-xs"
+              >
+                {feature}
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 mt-auto items-center justify-between">
-          <div className="flex flex-col gap-1 px-4 w-full sm:w-auto">
+          {/*  <button
+            onClick={onViewBoat}
+            className="flex-1 py-3 px-4 border border-blue-primary text-blue-primary font-semibold text-base rounded-md hover:bg-blue-primary/5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={badge === "unavailable"}
+          >
+            View Boat
+          </button>
+          */}
+
+          <div className="flex flex-col gap-1 px-4">
             <p className="text-sm text-[#0F1723] font-bold">Notes</p>
-            <p className="text-sm text-[#1F2937] font-normal max-w-[250px] break-words">
-              {safeNotes}
+            <p className="text-sm text-[#1F2937] font-normal max-w-[250px]">
+              160 Genevieve Rue Apt. 211 South Johnny, MO 89230-2074
             </p>
           </div>
 
-          <div className="flex w-full sm:w-auto gap-3">
-            <button
-              onClick={onSelectBoat}
-              className={`flex-1 sm:flex-none sm:min-w-[180px] py-3 px-4 font-semibold text-base rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                isWaitlistOnly
-                  ? "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                  : "bg-blue-primary text-white hover:bg-blue-primary/90"
-              }`}
-              disabled={badge === "unavailable"}
-            >
-              {isWaitlistOnly ? "Waitlist" : "Reserve"}
-            </button>
-          </div>
+          <button
+            onClick={onSelectBoat}
+            className="max-w-[300px] flex-1 py-3 px-4 bg-blue-primary text-white font-semibold text-base rounded-md hover:bg-blue-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={badge === "unavailable"}
+          >
+            Reserve
+          </button>
         </div>
       </div>
     </div>

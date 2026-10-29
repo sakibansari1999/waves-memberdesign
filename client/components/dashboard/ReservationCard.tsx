@@ -86,14 +86,8 @@ export default function ReservationCard({ reservation }: ReservationCardProps) {
     );
   }
 
-  const rawStatus = (reservation.status || "pending").toLowerCase();
-  const statusText =
-    rawStatus === "pending"
-      ? "Waitlisted"
-      : reservation.status
-        ? reservation.status.charAt(0).toUpperCase() + reservation.status.slice(1).toLowerCase()
-        : "Waitlisted";
-  const normalizedStatus = rawStatus;
+  const statusText = reservation.status || "Pending";
+  const normalizedStatus = statusText.toLowerCase();
 
   const badgeClasses =
     normalizedStatus === "confirmed"
@@ -229,10 +223,7 @@ export default function ReservationCard({ reservation }: ReservationCardProps) {
       </div>
 
       <div className="relative z-10 flex items-center gap-4 mt-8 flex-wrap">
-        <Link
-          to="/my-reservations"
-          className="flex items-center gap-2 px-7 py-3.5 bg-[#3B63FF] hover:bg-blue-700 text-white font-semibold text-[15px] rounded-md transition-colors"
-        >
+        <button className="flex items-center gap-2 px-7 py-3.5 bg-[#3B63FF] hover:bg-blue-700 text-white font-semibold text-[15px] rounded-md transition-colors">
           View Reservation
           <svg
             width="16"
@@ -249,7 +240,7 @@ export default function ReservationCard({ reservation }: ReservationCardProps) {
               strokeLinejoin="round"
             />
           </svg>
-        </Link>
+        </button>
 
         <button className="px-5 py-3.5 text-gray-500 hover:text-gray-700 font-medium text-[15px] transition-colors">
           Modify Booking

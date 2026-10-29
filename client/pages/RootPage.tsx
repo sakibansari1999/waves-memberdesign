@@ -1,6 +1,6 @@
 import { useAuth } from "@/context/AuthContext";
 import Login from "./Login";
-import Dashboard from "./Dashboard";
+import Search from "./Search";
 
 /**
  * Root Page - Conditionally displays Welcome or Search based on auth status
@@ -28,5 +28,5 @@ export default function RootPage() {
   }
 
   // Show Search for authenticated users
-  return <Dashboard />;
+  return <Search />;
 }

@@ -7,6 +7,11 @@ import { MemberProfile } from "@shared/types";
 const REQUIRED_PROFILE_FIELDS: (keyof MemberProfile)[] = [
   "first_name",
   "last_name",
+  "phone",
+  "address_line_1",
+  "city",
+  "state",
+  "zip_code",
 ];
 
 /**

@@ -5,14 +5,12 @@
 
 export interface MemberProfile {
   id: number;
-  membership_number?: string | null;
-  membership_number_display?: string | null;
 
   /* Personal Information */
   first_name: string;
   last_name: string;
-  email: string | null;
-  phone: string | null;
+  email: string;
+  phone: string;
   date_of_birth: string | null;
   gender: string | null;
 

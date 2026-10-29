@@ -6,8 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { fetchProfile, saveProfile } from "@/utils/api";
 import { isProfileComplete } from "@/utils/profileValidation";
-import { formatMembershipType } from "@/utils/formatMembershipType";
-import { formatMembershipNumber } from "@/utils/formatMembershipNumber";
 import { MemberProfile, UpdateProfileRequest, SaveProfileResponse } from "@shared/types";
 
 export default function Profile() {
@@ -276,7 +274,7 @@ export default function Profile() {
                   className="flex items-center gap-2 text-gray-900 text-sm"
                 >
                   <Phone className="w-4 h-4" />
-                  Phone Number
+                  Phone Number <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="phone"
@@ -287,6 +285,7 @@ export default function Profile() {
                   }
                   placeholder="+1 (555) 000-0000"
                   className="bg-gray-50 border-gray-300"
+                  required
                   disabled={isSaving}
                 />
               </div>
@@ -570,23 +569,10 @@ export default function Profile() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label className="text-gray-900 text-sm font-medium">
-                    Member ID
-                  </Label>
-                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm font-semibold">
-                    {formData.membership_number_display ||
-                      formatMembershipNumber(
-                        formData.membership_number,
-                        formData.id,
-                      )}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label className="text-gray-900 text-sm font-medium">
                     Membership Type
                   </Label>
-                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm">
-                    {formatMembershipType(formData.membership_type) || "—"}
+                  <div className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 text-sm capitalize">
+                    {formData.membership_type || "—"}
                   </div>
                 </div>
 

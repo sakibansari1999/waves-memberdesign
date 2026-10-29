@@ -5,7 +5,6 @@ import {
 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { cn } from "@/lib/utils";
-import { apiCall } from "@/utils/api";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL
 // ── Types ───────────────────────────────────────────────────────────────────
 
 type Tab = "upcoming" | "history" | "cancelled";
@@ -48,9 +48,7 @@ interface ReservationItem {
     name: string | null;
     image_url: string | null;
     dock_location: string | null;
-    capacity?: number | null;
   };
-  total_passengers?: number | null;
   location: string | null;
   destination: string | null;
   start_date: string | null;
@@ -100,14 +98,8 @@ interface EditMetaResponse {
     fleet_id: number;
     boat_name: string | null;
     location: string | null;
-    selected_date?: string | null;
-    selected_booking_type?: "AM" | "PM" | "FULL_DAY";
-    current_start_time?: string | null;
+    booking_type: "AM" | "PM" | "FULL_DAY";
     due_time: string | null;
-    due_time_formatted?: string | null;
-    is_waitlist?: boolean;
-    total_passengers?: number | null;
-    fleet_capacity?: number | null;
     time_slots: Array<{
       time: string;
       label: string;
@@ -116,8 +108,6 @@ interface EditMetaResponse {
     booking_types: Array<{
       value: "AM" | "PM" | "FULL_DAY";
       label: string;
-      available?: boolean;
-      waitlist?: boolean;
     }>;
   };
 }
@@ -137,10 +127,31 @@ interface EditFormState {
   start_time: string;
   destination: string;
   customer_notes: string;
-  total_passengers: string;
 }
 
 // ── API helpers ─────────────────────────────────────────────────────────────
+
+async function apiFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const token = localStorage.getItem("accessToken");
+
+  const response = await fetch(API_BASE_URL + url, {
+    ...options,
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+
+  const json = await response.json();
+
+  if (!response.ok) {
+    throw new Error(json?.message || "Something went wrong.");
+  }
+
+  return json as T;
+}
 
 function getEditMetaUrl(
   reservationId: number,
@@ -439,7 +450,7 @@ function ViewReservationModal({
     queryKey: ["my-trip-detail", reservationId],
     enabled: open && !!reservationId,
     queryFn: () =>
-      apiCall<ReservationDetailResponse>(`/api/my-trips/${reservationId}`),
+      apiFetch<ReservationDetailResponse>(`/api/my-trips/${reservationId}`),
   });
 
   const reservation = detailQuery.data?.data;
@@ -492,25 +503,14 @@ function ViewReservationModal({
                 {reservation.start_date_formatted || "—"}
               </div>
             </div>
-           <div className="rounded-lg border border-black/[0.08] p-4">
-  <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-    Reservation Start Time
-  </div>
-  <div className="text-sm font-semibold text-gray-900">
-    {reservation.start_time_formatted}
-  </div>
-
-  <div className="text-[12px] text-gray-600 italic mt-1">
-    Due back:{" "}
-    {reservation.booking_type === "AM"
-      ? "At or before 12:00 PM"
-      : reservation.booking_type === "PM"
-        ? "At or before 5:00 PM"
-        : reservation.booking_type === "FULL_DAY"
-          ? "At or before 5:00 PM"
-          : "—"}
-  </div>
-</div>
+            <div className="rounded-lg border border-black/[0.08] p-4">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                Time
+              </div>
+              <div className="text-sm font-semibold text-gray-900">
+                {formatTripTime(reservation)}
+              </div>
+            </div>
             <div className="rounded-lg border border-black/[0.08] p-4">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
                 Reservation Type
@@ -521,12 +521,18 @@ function ViewReservationModal({
             </div>
             <div className="rounded-lg border border-black/[0.08] p-4">
               <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-                Passengers
+                Duration
               </div>
               <div className="text-sm font-semibold text-gray-900">
-                {reservation.total_passengers != null
-                  ? reservation.total_passengers
-                  : "—"}
+                {reservation.duration_label || "—"}
+              </div>
+            </div>
+            <div className="rounded-lg border border-black/[0.08] p-4">
+              <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                Destination
+              </div>
+              <div className="text-sm font-semibold text-gray-900">
+                {reservation.destination || "Not specified"}
               </div>
             </div>
             <div className="rounded-lg border border-black/[0.08] p-4">
@@ -600,7 +606,6 @@ function EditReservationModal({
     start_time: "",
     destination: "",
     customer_notes: "",
-    total_passengers: "",
   });
 
   const [error, setError] = useState("");
@@ -613,11 +618,7 @@ function EditReservationModal({
       booking_type: reservation.booking_type || "",
       start_time: reservation.start_time || "",
       destination: reservation.destination || "",
-      customer_notes: (reservation as any).customer_notes || "",
-      total_passengers:
-        reservation.total_passengers != null
-          ? String(reservation.total_passengers)
-          : "",
+      customer_notes: "",
     });
     setError("");
   }, [reservation, open]);
@@ -631,7 +632,7 @@ function EditReservationModal({
     ],
     enabled: open && !!reservation?.id,
     queryFn: () =>
-      apiCall<EditMetaResponse>(
+      apiFetch<EditMetaResponse>(
         getEditMetaUrl(reservation!.id, {
           date: form.start_date || undefined,
           booking_type: form.booking_type || undefined,
@@ -642,20 +643,19 @@ function EditReservationModal({
   const destinationsQuery = useQuery({
     queryKey: ["reservation-destinations"],
     enabled: open,
-    queryFn: () => apiCall<DestinationsResponse>("/api/reservations/destinations"),
+    queryFn: () => apiFetch<DestinationsResponse>("/api/reservations/destinations"),
   });
 
   const updateMutation = useMutation({
     mutationFn: () =>
-      apiCall<ReservationDetailResponse>(`/api/my-trips/${reservation!.id}`, {
+      apiFetch<ReservationDetailResponse>(`/api/my-trips/${reservation!.id}`, {
         method: "PUT",
         body: JSON.stringify({
           start_date: form.start_date,
           booking_type: form.booking_type,
-          start_time: form.start_time || undefined,
+          start_time: form.start_time,
           destination: form.destination || null,
           customer_notes: form.customer_notes || null,
-          total_passengers: Number(form.total_passengers),
         }),
       }),
     onSuccess: () => {
@@ -669,62 +669,25 @@ function EditReservationModal({
   });
 
   const bookingTypes = editMetaQuery.data?.data.booking_types || [
-    { value: "AM", label: "AM", available: true, waitlist: false },
-    { value: "PM", label: "PM", available: true, waitlist: false },
-    { value: "FULL_DAY", label: "Full Day", available: true, waitlist: false },
+    { value: "AM", label: "AM" },
+    { value: "PM", label: "PM" },
+    { value: "FULL_DAY", label: "Full Day" },
   ];
 
   const timeSlots = editMetaQuery.data?.data.time_slots || [];
-  const dueTime =
-    (editMetaQuery.data?.data as any)?.due_time_formatted ||
-    (form.booking_type === "AM"
-      ? "12:00 PM"
-      : form.booking_type === "PM"
-        ? "05:00 PM"
-        : form.booking_type === "FULL_DAY"
-          ? "05:00 PM"
-          : "—");
 
-  const selectedBookingTypeMeta = useMemo(() => {
-    if (!form.booking_type) return null;
-
-    return (
-      bookingTypes.find((item) => item.value === form.booking_type) || null
-    );
-  }, [bookingTypes, form.booking_type]);
-
-  const isSelectedTypeWaitlist = !!(selectedBookingTypeMeta as any)?.waitlist;
-  const boatCapacity = Number(
-    editMetaQuery.data?.data.fleet_capacity ?? reservation?.boat.capacity ?? 0
-  );
+  const dueTime = useMemo(() => {
+    if (form.booking_type === "AM") return "12:00 PM";
+    if (form.booking_type === "PM") return "05:00 PM";
+    if (form.booking_type === "FULL_DAY") return "05:00 PM";
+    return "—";
+  }, [form.booking_type]);
 
   const handleSubmit = () => {
     setError("");
 
-    if (!form.start_date || !form.booking_type) {
+    if (!form.start_date || !form.booking_type || !form.start_time) {
       setError("Please fill in all required fields.");
-      return;
-    }
-
-    if (!isSelectedTypeWaitlist && !form.start_time) {
-      setError("Please select a start time.");
-      return;
-    }
-
-    if (!form.total_passengers.trim()) {
-      setError("Please enter total number of passengers.");
-      return;
-    }
-
-    const passengerCount = Number(form.total_passengers);
-
-    if (!Number.isInteger(passengerCount) || passengerCount < 1) {
-      setError("Total number of passengers must be at least 1.");
-      return;
-    }
-
-    if (boatCapacity > 0 && passengerCount > boatCapacity) {
-      setError(`Total passengers exceed boat capacity of ${boatCapacity}.`);
       return;
     }
 
@@ -786,12 +749,7 @@ function EditReservationModal({
                 type="date"
                 value={form.start_date}
                 onChange={(e) =>
-                  setForm((prev) => ({
-                    ...prev,
-                    start_date: e.target.value,
-                    booking_type: prev.booking_type,
-                    start_time: "",
-                  }))
+                  setForm((prev) => ({ ...prev, start_date: e.target.value, start_time: "" }))
                 }
                 className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-blue-500"
               />
@@ -802,11 +760,7 @@ function EditReservationModal({
               <Select
                 value={form.booking_type}
                 onValueChange={(value: "AM" | "PM" | "FULL_DAY") =>
-                  setForm((prev) => ({
-                    ...prev,
-                    booking_type: value,
-                    start_time: "",
-                  }))
+                  setForm((prev) => ({ ...prev, booking_type: value, start_time: "" }))
                 }
               >
                 <SelectTrigger className="bg-white border-gray-300">
@@ -826,34 +780,28 @@ function EditReservationModal({
           <div className="w-full">
             <div className="space-y-2">
               <Label className="text-gray-900 text-sm">Start Time *</Label>
-              {!form.start_date || !form.booking_type ? (
-                <div className="h-10 rounded-md border border-gray-300 bg-gray-50 px-3 flex items-center text-sm text-gray-500">
-                  Select date and reservation type first
-                </div>
-              ) : (
-                <Select
-                  value={form.start_time}
-                  onValueChange={(value) =>
-                    setForm((prev) => ({ ...prev, start_time: value }))
-                  }
-                >
-                  <SelectTrigger className="bg-white border-gray-300">
-                    <SelectValue placeholder="Select time slot" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {timeSlots.map((slot) => (
-                      <SelectItem
-                        key={slot.time}
-                        value={slot.time}
-                        disabled={!slot.available}
-                      >
-                        {slot.label}
-                        {!slot.available ? " (Reserved)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              <Select
+                value={form.start_time}
+                onValueChange={(value) =>
+                  setForm((prev) => ({ ...prev, start_time: value }))
+                }
+              >
+                <SelectTrigger className="bg-white border-gray-300">
+                  <SelectValue placeholder="Select time slot" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timeSlots.map((slot) => (
+                    <SelectItem
+                      key={slot.time}
+                      value={slot.time}
+                      disabled={!slot.available}
+                    >
+                      {slot.label}
+                      {!slot.available ? " (Reserved)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="flex items-start gap-2 text-gray-500 mt-2 pl-1">
@@ -862,27 +810,39 @@ function EditReservationModal({
                 Due back At or before {dueTime}
               </span>
             </div>
+
+            {/* <div className="space-y-2">
+              <Label className="text-gray-900 text-sm">End Time</Label>
+              <div className="h-10 rounded-md border border-gray-300 bg-gray-50 px-3 flex items-center text-sm text-gray-700">
+                {dueTime}
+              </div>
+            </div> */}
           </div>
 
-          <div className="space-y-2">
-            <Label className="text-gray-900 text-sm">Total Number of Passengers *</Label>
-            {boatCapacity > 0 ? (
-              <p className="text-gray-500 text-[12px]">
-                Maximum Capacity - {boatCapacity}
-              </p>
-            ) : null}
-            <input
-              type="number"
-              min={1}
-              max={boatCapacity > 0 ? boatCapacity : undefined}
-              value={form.total_passengers}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, total_passengers: e.target.value }))
+          {/* <div className="space-y-2">
+            <Label className="text-gray-900 text-sm">Destination</Label>
+            <Select
+              value={form.destination || "__none__"}
+              onValueChange={(value) =>
+                setForm((prev) => ({
+                  ...prev,
+                  destination: value === "__none__" ? "" : value,
+                }))
               }
-              className="w-full h-10 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none focus:border-blue-500"
-              placeholder="4"
-            />
-          </div>
+            >
+              <SelectTrigger className="bg-white border-gray-300">
+                <SelectValue placeholder="Where would you like to go" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Not specified</SelectItem>
+                {destinationsQuery.data?.data?.map((dest) => (
+                  <SelectItem key={dest.id} value={dest.id}>
+                    {dest.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div> */}
 
           <div className="space-y-2">
             <Label className="text-gray-900 text-sm">Notes</Label>
@@ -989,14 +949,6 @@ function ReservationCard({
               label="Duration"
               value={reservation.duration_label || "—"}
             />
-            <InfoField
-              label="Passengers"
-              value={
-                reservation.total_passengers != null
-                  ? String(reservation.total_passengers)
-                  : "—"
-              }
-            />
           </div>
         </div>
 
@@ -1083,12 +1035,12 @@ export default function MyTrips() {
 
   const tripsQuery = useQuery({
     queryKey: ["my-trips"],
-    queryFn: () => apiCall<TripsResponse>("/api/my-trips"),
+    queryFn: () => apiFetch<TripsResponse>("/api/my-trips"),
   });
 
   const cancelMutation = useMutation({
     mutationFn: (reservationId: number) =>
-      apiCall<{ success: boolean; message: string }>(
+      apiFetch<{ success: boolean; message: string }>(
         `/api/my-trips/${reservationId}/cancel`,
         {
           method: "PATCH",

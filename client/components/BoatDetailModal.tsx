@@ -54,7 +54,7 @@ export default function BoatDetailModal({
   if (!isOpen) return null;
 
   const handleSelectBoat = () => {
-    navigate("/reserve", {
+    navigate("/booking", {
       state: {
         boat,
         selectedDate,
@@ -121,7 +121,7 @@ export default function BoatDetailModal({
             {boat.includedWithMembership && (
               <div className="px-2 py-1 rounded-lg border border-blue-primary/64 bg-blue-primary/11">
                 <span className="text-blue-primary text-xs">
-                  Included with Membership
+                  Member Booking - No Charge
                 </span>
               </div>
             )}
