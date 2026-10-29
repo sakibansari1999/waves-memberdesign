@@ -87,13 +87,13 @@ export type SlotFilterValue = "AM" | "PM" | "FULL_DAY" | "full-day";
 export interface BoatFilters {
   search?: string;
   date?: string;
-  slot?: string; // ✅ ADD THIS
+  slot?: SlotFilterValue | string;
   location?: string | string[];
   boat_type?: string | string[];
   length_min?: number;
   length_max?: number;
   features?: string | string[];
-  sort?: string;
+  sort?: "boat_name" | "capacity" | "length" | "created_at" | string;
   order?: "asc" | "desc";
   page?: number;
   per_page?: number;
@@ -212,6 +212,7 @@ export interface CalendarAvailabilityResponse {
 /**
  * Fleet API Calls
  */
+
 export async function fetchBoats(
   filters: BoatFilters = {},
 ): Promise<BoatListResponse> {
@@ -219,39 +220,66 @@ export async function fetchBoats(
 
   if (filters.search) params.append("search", filters.search);
   if (filters.date) params.append("date", filters.date);
+
   if (filters.slot) {
     const mapping: Record<string, string> = {
       AM: "AM",
       PM: "PM",
+      FULL_DAY: "FULL_DAY",
       "full-day": "FULL_DAY",
     };
 
-    params.append("booking_type", mapping[filters.slot]);
+    const mappedBookingType = mapping[filters.slot];
+    if (mappedBookingType) {
+      params.append("booking_type", mappedBookingType);
+    }
   }
+
   if (filters.location) {
     const locations = Array.isArray(filters.location)
       ? filters.location
       : [filters.location];
-    locations.forEach((loc) => params.append("location", loc));
+
+    locations.forEach((loc) => {
+      if (loc) params.append("location", loc);
+    });
   }
 
   if (filters.boat_type) {
     const types = Array.isArray(filters.boat_type)
       ? filters.boat_type
       : [filters.boat_type];
-    types.forEach((type) => params.append("boat_type", type));
+
+    types.forEach((type) => {
+      if (type) params.append("boat_type", type);
+    });
   }
-  if (filters.length_min)
+
+  if (filters.features) {
+    const features = Array.isArray(filters.features)
+      ? filters.features
+      : [filters.features];
+
+    features.forEach((feature) => {
+      if (feature) params.append("features[]", feature);
+    });
+  }
+
+  if (filters.length_min !== undefined && filters.length_min !== null) {
     params.append("length_min", filters.length_min.toString());
-  if (filters.length_max)
+  }
+
+  if (filters.length_max !== undefined && filters.length_max !== null) {
     params.append("length_max", filters.length_max.toString());
+  }
+
   if (filters.sort) params.append("sort", filters.sort);
   if (filters.order) params.append("order", filters.order);
   if (filters.page) params.append("page", filters.page.toString());
   if (filters.per_page) params.append("per_page", filters.per_page.toString());
 
   const queryString = params.toString();
-  const endpoint = `/api/fleets${queryString ? "?" + queryString : ""}`;
+  const endpoint = `/api/fleets${queryString ? `?${queryString}` : ""}`;
 
   return apiCall<BoatListResponse>(endpoint);
 }
@@ -282,7 +310,8 @@ export async function fetchCalendarAvailability(
   if (boat_type) params.append("boat_type", boat_type);
 
   const queryString = params.toString();
-  return apiCall<CalendarAvailability>(
+
+  const response = await apiCall<CalendarAvailabilityResponse>(
     `/api/calendar-availability?${queryString}`,
   );
 
@@ -480,6 +509,7 @@ export async function fetchAvailableDates(
 export async function fetchAvailableTimes(
   fleetId: number,
   date: string,
+  bookingType?: BookingTypeValue,
 ): Promise<AvailableTimesResponse> {
   const params = new URLSearchParams({
     fleet_id: fleetId.toString(),
@@ -603,7 +633,7 @@ export async function fetchMyBookings(
   }
 
   const queryString = params.toString();
-  const endpoint = `/api/my-bookings${queryString ? "?" + queryString : ""}`;
+  const endpoint = `/api/my-bookings${queryString ? `?${queryString}` : ""}`;
 
   return apiCall<MyBookingsResponse>(endpoint);
 }

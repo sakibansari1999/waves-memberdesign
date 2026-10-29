@@ -24,6 +24,7 @@ import Billing from "./pages/Billing";
 import MyTrips from "./pages/MyReservations";
 import NotFound from "./pages/NotFound";
 
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -52,7 +53,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route
+                  <Route
               path="/dashboard"
               element={
                 <ProtectedRoute>
@@ -68,7 +69,7 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-
+           
             <Route
               path="/profile"
               element={
